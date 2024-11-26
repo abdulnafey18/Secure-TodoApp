@@ -11,6 +11,7 @@ import javafx.scene.layout.AnchorPane;
 import model.LogginUser;
 import model.User;
 import register.PasswordFactory;
+import security.Encryption;
 
 import java.io.IOException;
 import java.net.URL;
@@ -47,29 +48,37 @@ public class RegisterController implements Initializable {
         String password2 = textConfirmPassword.getText().trim();
         String email = textEmail.getText().trim();
 
-        if(name.isBlank() || password1.isBlank() || password2.isBlank() || email.isBlank()){
+        // Check if any fields are empty
+        if (name.isBlank() || password1.isBlank() || password2.isBlank() || email.isBlank()) {
             System.out.println("Fill in all Entries");
             labelFeedback.setText("Fill in all fields");
             return;
         }
 
+        // Validate the password
         PasswordFactory passwordFactory = new PasswordFactory();
-        String p = passwordFactory.confirmPassworValid(password1,password2);
+        String p = passwordFactory.confirmPassworValid(password1, password2);
         System.out.println(p);
         labelFeedback.setText(p);
 
-        if(p.equals("OK")){
+        if (p.equals("OK")) {
+            // Hash the password before storing it
+            String hashedPassword = Encryption.hashPassword(password1);
+
+            // Create the user object and store it in the database
             User u = new User();
             UserDAOImpl dbu = new UserDAOImpl();
             u.setName(name);
-            u.setPassword(password1);
+            u.setPassword(hashedPassword); // Store the hashed password
             u.setEmail(email);
             LogginUser.setUser(u);
-            dbu.create(u);
-            String dest = "/view/login-view.fxml";
-            MainApplication.navigateTo(anchorPaneRegister,dest);
-        }
 
+            dbu.create(u);
+
+            // Navigate to the login screen
+            String dest = "/view/login-view.fxml";
+            MainApplication.navigateTo(anchorPaneRegister, dest);
+        }
     }
 
     @Override

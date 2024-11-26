@@ -1,6 +1,7 @@
 package database;
 
 import model.User;
+import security.Encryption;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -127,26 +128,28 @@ public class UserDAOImpl implements UserDAO {
         Connection con = Database.getConnection();
         User user = null;
 
-        String sql = "SELECT * FROM user WHERE name = ? AND password = ?";
+        String sql = "SELECT * FROM user WHERE name = ?";
         PreparedStatement ps = con.prepareStatement(sql);
-        ps.setString(1, name);
-        ps.setString(2, password);
+        ps.setString(1, name); // Only the name is used for login purposes in the secure implementation
 
         ResultSet rs = ps.executeQuery();
 
         if (rs.next()) {
-            // User found
+            String hashedPassword = rs.getString("password");
+            if (!Encryption.verifyPassword(password, hashedPassword)) {
+                // Password does not match
+                Database.closeResultSet(rs);
+                Database.closePreparedStatement(ps);
+                Database.closeConnection(con);
+                return null;
+            }
+            // Password matches, retrieve the user
             Integer _id = rs.getInt("id");
             String userName = rs.getString("name");
-            String userPassword = rs.getString("password");
             String userEmail = rs.getString("email");
-            user = new User(_id, userName, userPassword, userEmail);
-        } else {
-            // No user found
-            System.out.println("No user found with the provided credentials.");
+            user = new User(_id, userName, hashedPassword, userEmail);
         }
 
-        // Close resources
         Database.closeResultSet(rs);
         Database.closePreparedStatement(ps);
         Database.closeConnection(con);

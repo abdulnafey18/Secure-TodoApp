@@ -8,6 +8,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
 import model.LogginUser;
 import model.User;
+import security.Encryption;
 
 import java.io.IOException;
 import java.net.URL;
@@ -36,13 +37,23 @@ public class LoginController implements Initializable {
     @FXML
     void onLoginButtonClicked(ActionEvent event) throws IOException, SQLException {
         String name = textUserName.getText().trim();
-        String password = textUserPassword.getText().trim();
+        String plainPassword = textUserPassword.getText().trim();
 
-        // Retrieve user from database
-        User u = db.readLoggedInUser(name, password);
+        if (name.isEmpty() || plainPassword.isEmpty()) {
+            // Show an alert for empty fields
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Login Failed");
+            alert.setHeaderText("Missing Fields");
+            alert.setContentText("Please enter both username and password.");
+            alert.showAndWait();
+            return;
+        }
 
-        if (u == null) {
-            // Show an alert for incorrect username/password
+        // Retrieve the user from the database
+        User user = db.readLoggedInUser(name, plainPassword); // Pass both username and password
+
+        if (user == null) {
+            // Show an alert for incorrect username or password
             Alert alert = new Alert(Alert.AlertType.ERROR);
             alert.setTitle("Login Failed");
             alert.setHeaderText("Invalid Username or Password");
@@ -51,8 +62,19 @@ public class LoginController implements Initializable {
             return;
         }
 
-        // Set the logged-in user and navigate to the Todo screen
-        LogginUser.setUser(u);
+        // Verify the password securely
+        if (!Encryption.verifyPassword(plainPassword, user.getPassword())) {
+            // Passwords do not match
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Login Failed");
+            alert.setHeaderText("Invalid Username or Password");
+            alert.setContentText("Please try again.");
+            alert.showAndWait();
+            return;
+        }
+
+        // Password verified, set the logged-in user and navigate
+        LogginUser.setUser(user);
         String dest = "/view/Todo-view.fxml";
         MainApplication.navigateTo(anchorPaneLogin, dest);
     }

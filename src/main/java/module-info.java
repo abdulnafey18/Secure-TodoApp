@@ -4,6 +4,7 @@ module blogApp {
     requires java.sql;
     requires jdk.httpserver;
     requires okhttp3;
+    requires jbcrypt;
 
 
     exports controller;
