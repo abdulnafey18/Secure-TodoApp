@@ -86,14 +86,17 @@ public class TodoController {
             // Get the logged-in user's ID
             int userId = LogginUser.getUser().getId();
 
-            // Insert the new task into the database
-            String query = "INSERT INTO todos (user_id, task) VALUES (?, ?)";
-            PreparedStatement statement = connection.prepareStatement(query);
-            statement.setInt(1, userId);
-            statement.setString(2, newTask);
-            statement.executeUpdate();
+            // Insecure: Logging sensitive data
+            System.out.println("Adding task for UserID: " + userId + " with Task: " + newTask);
 
+            // Insecure query: Directly concatenating user inputs (no sanitization or validation)
+            String query = "INSERT INTO todos (user_id, task) VALUES (" + userId + ", '" + newTask + "')";
+            Statement statement = connection.createStatement();
+            statement.executeUpdate(query);
+
+            // Add the task to the list directly without sanitizing or escaping
             tasks.add(newTask);
+            listView.setItems(tasks); // Display the task without escaping
             listAdd.clear();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -111,13 +114,11 @@ public class TodoController {
             // Get the logged-in user's ID
             int userId = LogginUser.getUser().getId();
 
-            // Update the task for the logged-in user
-            String query = "UPDATE todos SET task = ? WHERE user_id = ? AND task = ?";
-            PreparedStatement statement = connection.prepareStatement(query);
-            statement.setString(1, newTask);
-            statement.setInt(2, userId);
-            statement.setString(3, selectedTask);
-            statement.executeUpdate();
+            // Insecure query: Directly concatenating user inputs
+            String query = "UPDATE todos SET task = '" + newTask + "' WHERE user_id = " + userId +
+                    " AND task = '" + selectedTask + "'";
+            Statement statement = connection.createStatement();
+            statement.executeUpdate(query);
 
             tasks.set(tasks.indexOf(selectedTask), newTask);
             listView.refresh();
@@ -136,12 +137,10 @@ public class TodoController {
             // Get the logged-in user's ID
             int userId = LogginUser.getUser().getId();
 
-            // Delete the selected task for the logged-in user
-            String query = "DELETE FROM todos WHERE user_id = ? AND task = ?";
-            PreparedStatement statement = connection.prepareStatement(query);
-            statement.setInt(1, userId);
-            statement.setString(2, selectedTask);
-            statement.executeUpdate();
+            // Insecure query: Directly concatenating user inputs
+            String query = "DELETE FROM todos WHERE user_id = " + userId + " AND task = '" + selectedTask + "'";
+            Statement statement = connection.createStatement();
+            statement.executeUpdate(query);
 
             tasks.remove(selectedTask);
         } catch (SQLException e) {

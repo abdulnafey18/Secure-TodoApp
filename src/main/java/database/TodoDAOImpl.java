@@ -12,17 +12,15 @@ public class TodoDAOImpl implements TodoDAO {
     @Override
     public int create(Todo todo) throws SQLException {
         Connection con = Database.getConnection();
-        String sql = "INSERT INTO todos (user_id, task) VALUES (?, ?)";
 
-        PreparedStatement ps = con.prepareStatement(sql);
-        ps.setInt(1, todo.getUserId());
-        ps.setString(2, todo.getTask());
+        // Insecure query with concatenated user inputs
+        String query = "INSERT INTO todos (user_id, task) VALUES (" +
+                todo.getUserId() + ", '" + todo.getTask() + "')";
+        Statement stmt = con.createStatement();
+        int result = stmt.executeUpdate(query);
 
-        int result = ps.executeUpdate();
-
-        Database.closePreparedStatement(ps);
+        Database.closeStatement(stmt);
         Database.closeConnection(con);
-
         return result;
     }
 
@@ -88,10 +86,10 @@ public class TodoDAOImpl implements TodoDAO {
         Connection con = Database.getConnection();
         List<Todo> todos = new ArrayList<>();
 
-        String sql = "SELECT * FROM todos WHERE user_id = ?";
-        PreparedStatement ps = con.prepareStatement(sql);
-        ps.setInt(1, userId);
-        ResultSet rs = ps.executeQuery();
+        // Insecure query with concatenated user inputs
+        String query = "SELECT * FROM todos WHERE user_id = " + userId;
+        Statement stmt = con.createStatement();
+        ResultSet rs = stmt.executeQuery(query);
 
         while (rs.next()) {
             int id = rs.getInt("id");
@@ -100,9 +98,8 @@ public class TodoDAOImpl implements TodoDAO {
         }
 
         Database.closeResultSet(rs);
-        Database.closePreparedStatement(ps);
+        Database.closeStatement(stmt);
         Database.closeConnection(con);
-
         return todos;
     }
 }

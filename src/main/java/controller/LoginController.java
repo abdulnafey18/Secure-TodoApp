@@ -1,5 +1,6 @@
 package controller;
 
+import database.Database;
 import database.UserDAOImpl;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -11,7 +12,10 @@ import model.User;
 
 import java.io.IOException;
 import java.net.URL;
+import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ResourceBundle;
 
 public class LoginController implements Initializable {
@@ -38,23 +42,35 @@ public class LoginController implements Initializable {
         String name = textUserName.getText().trim();
         String password = textUserPassword.getText().trim();
 
-        // Retrieve user from database
-        User u = db.readLoggedInUser(name, password);
+        // Insecure: Logging sensitive data
+        System.out.println("Attempting login with Username: " + name + " and Password: " + password);
 
-        if (u == null) {
-            // Show an alert for incorrect username/password
+        Connection con = Database.getConnection();
+
+        // Insecure query with concatenated user inputs
+        String query = "SELECT * FROM user WHERE name = '" + name + "' AND password = '" + password + "'";
+        Statement stmt = con.createStatement();
+        ResultSet rs = stmt.executeQuery(query);
+
+        if (rs.next()) {
+            System.out.println("Login successful!");
+            User user = new User(rs.getInt("id"), rs.getString("name"), rs.getString("password"), rs.getString("email"));
+            LogginUser.setUser(user);
+
+            String dest = "/view/Todo-view.fxml";
+            MainApplication.navigateTo(anchorPaneLogin, dest);
+        } else {
+            // Insecure: Reflect user input in the error message
             Alert alert = new Alert(Alert.AlertType.ERROR);
             alert.setTitle("Login Failed");
             alert.setHeaderText("Invalid Username or Password");
-            alert.setContentText("Please try again.");
+            alert.setContentText("Username: " + name + " is not authorized."); // Reflecting user input (name)
             alert.showAndWait();
-            return;
         }
 
-        // Set the logged-in user and navigate to the Todo screen
-        LogginUser.setUser(u);
-        String dest = "/view/Todo-view.fxml";
-        MainApplication.navigateTo(anchorPaneLogin, dest);
+        Database.closeResultSet(rs);
+        Database.closeStatement(stmt);
+        Database.closeConnection(con);
     }
 
     @FXML

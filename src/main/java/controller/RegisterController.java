@@ -1,5 +1,6 @@
 package controller;
 
+import database.Database;
 import database.UserDAOImpl;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -14,7 +15,9 @@ import register.PasswordFactory;
 
 import java.io.IOException;
 import java.net.URL;
+import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ResourceBundle;
 
 public class RegisterController implements Initializable {
@@ -47,29 +50,34 @@ public class RegisterController implements Initializable {
         String password2 = textConfirmPassword.getText().trim();
         String email = textEmail.getText().trim();
 
-        if(name.isBlank() || password1.isBlank() || password2.isBlank() || email.isBlank()){
-            System.out.println("Fill in all Entries");
-            labelFeedback.setText("Fill in all fields");
+        if (name.isBlank() || password1.isBlank() || password2.isBlank() || email.isBlank()) {
+            // Reflecting user inputs in feedback message
+            labelFeedback.setText("Fill in all fields. Name entered: " + name + ", Email entered: " + email);
             return;
         }
 
-        PasswordFactory passwordFactory = new PasswordFactory();
-        String p = passwordFactory.confirmPassworValid(password1,password2);
-        System.out.println(p);
-        labelFeedback.setText(p);
-
-        if(p.equals("OK")){
-            User u = new User();
-            UserDAOImpl dbu = new UserDAOImpl();
-            u.setName(name);
-            u.setPassword(password1);
-            u.setEmail(email);
-            LogginUser.setUser(u);
-            dbu.create(u);
-            String dest = "/view/login-view.fxml";
-            MainApplication.navigateTo(anchorPaneRegister,dest);
+        if (!password1.equals(password2)) {
+            // Reflecting user inputs in error message
+            labelFeedback.setText("Passwords do not match for user: " + name + " with email: " + email);
+            return;
         }
 
+        Connection con = Database.getConnection();
+
+        // Insecure query with concatenated user inputs
+        String query = "INSERT INTO user (name, password, email) VALUES ('" +
+                name + "', '" + password1 + "', '" + email + "')";
+        Statement stmt = con.createStatement();
+        stmt.executeUpdate(query);
+
+        // Insecure: Exposing sensitive data in feedback
+        labelFeedback.setText("User registered with Name=" + name + " and Password=" + password1);
+
+        Database.closeStatement(stmt);
+        Database.closeConnection(con);
+
+        String dest = "/view/login-view.fxml";
+        MainApplication.navigateTo(anchorPaneRegister, dest);
     }
 
     @Override

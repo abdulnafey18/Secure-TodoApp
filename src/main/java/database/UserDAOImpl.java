@@ -12,75 +12,73 @@ public class UserDAOImpl implements UserDAO {
     @Override
     public int create(User user) throws SQLException {
         Connection con = Database.getConnection();
-        String sql = "INSERT INTO user (name, password, email) VALUES (?, ?, ?)";
 
-        PreparedStatement ps = con.prepareStatement(sql);
-        ps.setString(1, user.getName());
-        ps.setString(2, user.getPassword());
-        ps.setString(3, user.getEmail());
+        // Insecure query with concatenated user inputs
+        String query = "INSERT INTO user (name, password, email) VALUES ('" +
+                user.getName() + "', '" + user.getPassword() + "', '" + user.getEmail() + "')";
+        Statement stmt = con.createStatement();
+        int result = stmt.executeUpdate(query);
 
-        int result = ps.executeUpdate();
-
-        Database.closePreparedStatement(ps);
+        Database.closeStatement(stmt);
         Database.closeConnection(con);
-
         return result;
-
     }
 
     @Override
     public User readOne(int id) throws SQLException {
         Connection con = Database.getConnection();
         User user = null;
-        System.out.println(id);
-        String sql = "SELECT * FROM user WHERE id = ? ";
-        PreparedStatement ps = con.prepareStatement(sql);
-        ps.setInt(1, id);
-        ResultSet rs = ps.executeQuery();
+
+        // Insecure query: Directly concatenating user input (id)
+        String sql = "SELECT * FROM user WHERE id = " + id;
+        Statement stmt = con.createStatement();
+        ResultSet rs = stmt.executeQuery(sql);
+
         if (rs.next()) {
             Integer _id = rs.getInt("id");
             String userName = rs.getString("name");
             String userPassword = rs.getString("password");
             String userEmail = rs.getString("email");
-            user = new User(_id,userName, userPassword, userEmail);
+            user = new User(_id, userName, userPassword, userEmail);
         }
+
         Database.closeResultSet(rs);
-        Database.closePreparedStatement(ps);
+        Database.closeStatement(stmt);
         Database.closeConnection(con);
+
         return user;
     }
 
     @Override
     public int update(User user) throws SQLException {
         Connection connection = Database.getConnection();
-        System.out.println(user.getName()+" "+user.getPassword());
-        String sql = "UPDATE user set name = ?, password = ?, where id = ?";
 
-        PreparedStatement ps = connection.prepareStatement(sql);
-        ps.setString(1, user.getName());
-        ps.setString(2, user.getPassword());
-        ps.setInt(3, user.getId());
+        // Insecure query: Directly concatenating user inputs (name, password, id)
+        String sql = "UPDATE user SET name = '" + user.getName() +
+                "', password = '" + user.getPassword() +
+                "' WHERE id = " + user.getId();
+        Statement stmt = connection.createStatement();
+        int result = stmt.executeUpdate(sql);
 
-        int result = ps.executeUpdate();
-        Database.closePreparedStatement(ps);
+        Database.closeStatement(stmt);
         Database.closeConnection(connection);
-        return result;
 
+        return result;
     }
 
     @Override
     public int delete(User user) throws SQLException {
         Connection connection = Database.getConnection();
 
-        String sql = "DELETE  FROM user WHERE name =? AND password = ?";
-        System.out.println(sql);
+        // Insecure query: Directly concatenating user inputs (name, password)
+        String sql = "DELETE FROM user WHERE name = '" + user.getName() +
+                "' AND password = '" + user.getPassword() + "'";
+        Statement stmt = connection.createStatement();
+        int result = stmt.executeUpdate(sql);
 
-        PreparedStatement ps = connection.prepareStatement(sql);
-        ps.setString(1, user.getName());
-        ps.setString(2, user.getPassword());
-        int result = ps.executeUpdate();
-        Database.closePreparedStatement(ps);
+        Database.closeStatement(stmt);
         Database.closeConnection(connection);
+
         return result;
     }
 
@@ -104,21 +102,23 @@ public class UserDAOImpl implements UserDAO {
 
     @Override
     public int checkExists(String a, String b) throws SQLException {
-        int count = 0;
-        User user= null;
         Connection con = Database.getConnection();
+        int count = 0;
 
-        String query = "SELECT COUNT(*) FROM user WHERE name = ? AND password = ?";
-        PreparedStatement ps = con.prepareStatement(query);
-        ps.setString(1,a);
-        ps.setString(2,b);
-        ResultSet rs = ps.executeQuery();
-        while(rs.next()) {
+        // Insecure query: Directly concatenating user inputs (a, b)
+        String query = "SELECT COUNT(*) FROM user WHERE name = '" + a +
+                "' AND password = '" + b + "'";
+        Statement stmt = con.createStatement();
+        ResultSet rs = stmt.executeQuery(query);
+
+        if (rs.next()) {
             count = rs.getInt(1);
         }
+
         Database.closeResultSet(rs);
-        Database.closePreparedStatement(ps);
+        Database.closeStatement(stmt);
         Database.closeConnection(con);
+
         return count;
     }
 
@@ -127,30 +127,22 @@ public class UserDAOImpl implements UserDAO {
         Connection con = Database.getConnection();
         User user = null;
 
-        String sql = "SELECT * FROM user WHERE name = ? AND password = ?";
-        PreparedStatement ps = con.prepareStatement(sql);
-        ps.setString(1, name);
-        ps.setString(2, password);
-
-        ResultSet rs = ps.executeQuery();
+        // Insecure query with concatenated user inputs
+        String query = "SELECT * FROM user WHERE name = '" + name + "' AND password = '" + password + "'";
+        Statement stmt = con.createStatement();
+        ResultSet rs = stmt.executeQuery(query);
 
         if (rs.next()) {
-            // User found
             Integer _id = rs.getInt("id");
             String userName = rs.getString("name");
             String userPassword = rs.getString("password");
             String userEmail = rs.getString("email");
             user = new User(_id, userName, userPassword, userEmail);
-        } else {
-            // No user found
-            System.out.println("No user found with the provided credentials.");
         }
 
-        // Close resources
         Database.closeResultSet(rs);
-        Database.closePreparedStatement(ps);
+        Database.closeStatement(stmt);
         Database.closeConnection(con);
-
         return user;
     }
 }
