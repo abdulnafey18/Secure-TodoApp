@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.text.Font?>
+<?import javafx.scene.text.Text?>
+
+<?import javafx.scene.control.ListView?>
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/23" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.TodoController">
+   <top>
+      <AnchorPane prefHeight="63.0" prefWidth="600.0" style="-fx-background-color: #ECE237;" BorderPane.alignment="CENTER">
+         <children>
+            <Label layoutX="249.0" layoutY="17.0" text="To Do List" textFill="#e83232">
+               <font>
+                  <Font size="24.0" />
+               </font>
+            </Label>
+            <Button fx:id="btnNext" layoutX="491.0" layoutY="20.0" mnemonicParsing="false" onAction="#switchToMain" text="Back to Login" />
+         </children>
+      </AnchorPane>
+   </top>
+   <center>
+      <AnchorPane prefHeight="273.0" prefWidth="600.0" style="-fx-background-color: #ccffff;" BorderPane.alignment="CENTER">
+         <children>
+            <TextField fx:id="listAdd" layoutX="96.0" layoutY="152.0" prefHeight="131.0" prefWidth="391.0" />
+            <ListView fx:id="listView" layoutX="14.0" layoutY="14.0" prefHeight="127.0" prefWidth="574.0" />
+            <Text layoutX="257.0" layoutY="19.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Your existing list" />
+            <Text layoutX="260.0" layoutY="149.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Create your list" />
+         </children>
+      </AnchorPane>
+   </center>
+   <bottom>
+      <AnchorPane prefHeight="48.0" prefWidth="600.0" style="-fx-background-color: #ECE237;" BorderPane.alignment="CENTER">
+         <children>
+            <Button fx:id="btnAdd" layoutX="129.0" layoutY="12.0" mnemonicParsing="false" onAction="#addTask" text="Add Task" />
+            <Button fx:id="btnEdit" layoutX="281.0" layoutY="12.0" mnemonicParsing="false" onAction="#editTask" text="Edit" />
+            <Button fx:id="btnDelete" layoutX="414.0" layoutY="12.0" mnemonicParsing="false" onAction="#deleteTask" text="Delete" />
+         </children>
+      </AnchorPane>
+   </bottom>
+</BorderPane>
