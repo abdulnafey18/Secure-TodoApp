@@ -1,5 +1,6 @@
 package controller;
 
+import database.LogDAOImpl;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -7,13 +8,12 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.control.TextArea;
+import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
-import javafx.scene.input.MouseEvent;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.scene.control.ListView;
 import javafx.stage.Stage;
+import model.Log;
 import model.LogginUser;
 
 import java.io.IOException;
@@ -39,7 +39,7 @@ public class TodoController {
     private ObservableList<String> tasks = FXCollections.observableArrayList();
 
     private Connection connection;
-    private int userId = 1; // Assuming a logged-in user with ID 1 for simplicity
+    private LogDAOImpl db = new LogDAOImpl();
 
     @FXML
     public void initialize() {
@@ -83,7 +83,6 @@ public class TodoController {
         if (newTask.isEmpty()) return;
 
         try {
-            // Get the logged-in user's ID
             int userId = LogginUser.getUser().getId();
 
             // Insert the new task into the database
@@ -95,6 +94,11 @@ public class TodoController {
 
             tasks.add(newTask);
             listAdd.clear();
+
+            // Log task creation
+            Log log = new Log("INFO", "Task created by user: " + LogginUser.getUser().getName() + ", details: " + newTask, new java.util.Date().toString());
+            db.create(log);
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -108,7 +112,6 @@ public class TodoController {
         if (selectedTask == null || newTask.isEmpty()) return;
 
         try {
-            // Get the logged-in user's ID
             int userId = LogginUser.getUser().getId();
 
             // Update the task for the logged-in user
@@ -122,6 +125,11 @@ public class TodoController {
             tasks.set(tasks.indexOf(selectedTask), newTask);
             listView.refresh();
             listAdd.clear();
+
+            // Log task update
+            Log log = new Log("INFO", "Task updated by user: " + LogginUser.getUser().getName() + ", old details: " + selectedTask + ", new details: " + newTask, new java.util.Date().toString());
+            db.create(log);
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -133,7 +141,6 @@ public class TodoController {
         if (selectedTask == null) return;
 
         try {
-            // Get the logged-in user's ID
             int userId = LogginUser.getUser().getId();
 
             // Delete the selected task for the logged-in user
@@ -144,6 +151,11 @@ public class TodoController {
             statement.executeUpdate();
 
             tasks.remove(selectedTask);
+
+            // Log task deletion
+            Log log = new Log("INFO", "Task deleted by user: " + LogginUser.getUser().getName() + ", details: " + selectedTask, new java.util.Date().toString());
+            db.create(log);
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
