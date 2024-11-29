@@ -8,18 +8,27 @@ import java.util.List;
 
 public class UserDAOImpl implements UserDAO {
 
-
     @Override
     public int create(User user) throws SQLException {
         Connection con = Database.getConnection();
 
-        // Insecure query with concatenated user inputs
-        String query = "INSERT INTO user (name, password, email) VALUES ('" +
-                user.getName() + "', '" + user.getPassword() + "', '" + user.getEmail() + "')";
-        Statement stmt = con.createStatement();
-        int result = stmt.executeUpdate(query);
+        // Use default values for role and lock if not provided
+        String role = (user.getRole() != null) ? user.getRole().toString() : "USER";
+        String lock = (user.getLock() != null) ? user.getLock().toString() : "UNLOCKED";
 
-        Database.closeStatement(stmt);
+        // Updated insert query with explicit default values
+        String query = "INSERT INTO user (name, password, email, role, lock) VALUES (?, ?, ?, ?, ?)";
+        PreparedStatement stmt = con.prepareStatement(query);
+
+        stmt.setString(1, user.getName());
+        stmt.setString(2, user.getPassword());
+        stmt.setString(3, user.getEmail());
+        stmt.setString(4, role);  // Default to USER if not set
+        stmt.setString(5, lock);  // Default to UNLOCKED if not set
+
+        int result = stmt.executeUpdate();
+
+        Database.closePreparedStatement(stmt);
         Database.closeConnection(con);
         return result;
     }
@@ -29,17 +38,21 @@ public class UserDAOImpl implements UserDAO {
         Connection con = Database.getConnection();
         User user = null;
 
-        // Insecure query: Directly concatenating user input (id)
+        // Select query to fetch a user by id
         String sql = "SELECT * FROM user WHERE id = " + id;
         Statement stmt = con.createStatement();
         ResultSet rs = stmt.executeQuery(sql);
 
         if (rs.next()) {
-            Integer _id = rs.getInt("id");
-            String userName = rs.getString("name");
-            String userPassword = rs.getString("password");
-            String userEmail = rs.getString("email");
-            user = new User(_id, userName, userPassword, userEmail);
+            // Map the result set to a User object
+            user = new User(
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    rs.getString("password"),
+                    rs.getString("email"),
+                    rs.getString("role"),
+                    rs.getString("lock")
+            );
         }
 
         Database.closeResultSet(rs);
@@ -53,9 +66,11 @@ public class UserDAOImpl implements UserDAO {
     public int update(User user) throws SQLException {
         Connection connection = Database.getConnection();
 
-        // Insecure query: Directly concatenating user inputs (name, password, id)
+        // Update query to modify user attributes
         String sql = "UPDATE user SET name = '" + user.getName() +
                 "', password = '" + user.getPassword() +
+                "', role = '" + user.getRole() +
+                "', lock = '" + user.getLock() +
                 "' WHERE id = " + user.getId();
         Statement stmt = connection.createStatement();
         int result = stmt.executeUpdate(sql);
@@ -70,7 +85,7 @@ public class UserDAOImpl implements UserDAO {
     public int delete(User user) throws SQLException {
         Connection connection = Database.getConnection();
 
-        // Insecure query: Directly concatenating user inputs (name, password)
+        // Delete query to remove a user
         String sql = "DELETE FROM user WHERE name = '" + user.getName() +
                 "' AND password = '" + user.getPassword() + "'";
         Statement stmt = connection.createStatement();
@@ -89,14 +104,24 @@ public class UserDAOImpl implements UserDAO {
         List<User> users = new ArrayList<>();
         Statement stmt = con.createStatement();
         ResultSet rs = stmt.executeQuery(sql);
+
         while (rs.next()) {
-            Integer _id = rs.getInt("id");
-            String userName = rs.getString("name");
-            String userPassword = rs.getString("password");
-            String userEmail = rs.getString("email");
-            User user = new User(_id,userName, userPassword, userEmail);
+            // Map the result set to User objects and add to the list
+            User user = new User(
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    rs.getString("password"),
+                    rs.getString("email"),
+                    rs.getString("role"),
+                    rs.getString("lock")
+            );
             users.add(user);
         }
+
+        Database.closeResultSet(rs);
+        Database.closeStatement(stmt);
+        Database.closeConnection(con);
+
         return users;
     }
 
@@ -105,7 +130,7 @@ public class UserDAOImpl implements UserDAO {
         Connection con = Database.getConnection();
         int count = 0;
 
-        // Insecure query: Directly concatenating user inputs (a, b)
+        // Check existence of user by name and password
         String query = "SELECT COUNT(*) FROM user WHERE name = '" + a +
                 "' AND password = '" + b + "'";
         Statement stmt = con.createStatement();
@@ -127,22 +152,27 @@ public class UserDAOImpl implements UserDAO {
         Connection con = Database.getConnection();
         User user = null;
 
-        // Insecure query with concatenated user inputs
+        // Select query to find a user with specific name and password
         String query = "SELECT * FROM user WHERE name = '" + name + "' AND password = '" + password + "'";
         Statement stmt = con.createStatement();
         ResultSet rs = stmt.executeQuery(query);
 
         if (rs.next()) {
-            Integer _id = rs.getInt("id");
-            String userName = rs.getString("name");
-            String userPassword = rs.getString("password");
-            String userEmail = rs.getString("email");
-            user = new User(_id, userName, userPassword, userEmail);
+            // Map the result set to a User object
+            user = new User(
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    rs.getString("password"),
+                    rs.getString("email"),
+                    rs.getString("role"),
+                    rs.getString("lock")
+            );
         }
 
         Database.closeResultSet(rs);
         Database.closeStatement(stmt);
         Database.closeConnection(con);
+
         return user;
     }
 }

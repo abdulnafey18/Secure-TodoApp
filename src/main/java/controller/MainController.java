@@ -40,11 +40,24 @@ public class MainController implements Initializable {
     private Label labelInfo;
 
     @FXML
+    void onAdminButtonClicked(ActionEvent event) throws IOException {
+        String dest = "/view/admin-view.fxml";
+        MainApplication.navigateTo(anchorPaneMain,dest);
+
+    }
+
+    @FXML
     void onLoginButtonClicked(ActionEvent event) throws IOException {
         String dest = "/view/login-view.fxml";
         MainApplication.navigateTo(anchorPaneMain,dest);
     }
 
+    @FXML
+    void onMonitorButtonClicked(ActionEvent event) throws IOException {
+        String dest = "/view/log-view.fxml";
+        MainApplication.navigateTo(anchorPaneMain,dest);
+
+    }
 
     @FXML
     void onExitClicked(ActionEvent event) throws IOException {

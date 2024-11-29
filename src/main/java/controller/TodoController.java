@@ -1,5 +1,6 @@
 package controller;
 
+import database.LogDAOImpl;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -14,6 +15,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.ListView;
 import javafx.stage.Stage;
+import model.Log;
 import model.LogginUser;
 
 import java.io.IOException;
@@ -40,6 +42,10 @@ public class TodoController {
 
     private Connection connection;
     private int userId = 1; // Assuming a logged-in user with ID 1 for simplicity
+
+
+    // Add this line here:
+    private LogDAOImpl db = new LogDAOImpl();
 
     @FXML
     public void initialize() {
@@ -83,25 +89,25 @@ public class TodoController {
         if (newTask.isEmpty()) return;
 
         try {
-            // Get the logged-in user's ID
             int userId = LogginUser.getUser().getId();
-
-            // Insecure: Logging sensitive data
-            System.out.println("Adding task for UserID: " + userId + " with Task: " + newTask);
-
-            // Insecure query: Directly concatenating user inputs (no sanitization or validation)
-            String query = "INSERT INTO todos (user_id, task) VALUES (" + userId + ", '" + newTask + "')";
+            String escapedTask = newTask.replace("'", "''");
+            String query = "INSERT INTO todos (user_id, task) VALUES (" + userId + ", '" + escapedTask + "')";
             Statement statement = connection.createStatement();
             statement.executeUpdate(query);
 
-            // Add the task to the list directly without sanitizing or escaping
             tasks.add(newTask);
-            listView.setItems(tasks); // Display the task without escaping
+            listView.setItems(tasks);
             listAdd.clear();
+
+            // Log task creation
+            Log log = new Log("INFO", "Task created by user: " + LogginUser.getUser().getName() + ", details: " + newTask, new java.util.Date().toString());
+            db.create(log);
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
+
+
 
     @FXML
     private void editTask() {
@@ -111,18 +117,18 @@ public class TodoController {
         if (selectedTask == null || newTask.isEmpty()) return;
 
         try {
-            // Get the logged-in user's ID
             int userId = LogginUser.getUser().getId();
-
-            // Insecure query: Directly concatenating user inputs
-            String query = "UPDATE todos SET task = '" + newTask + "' WHERE user_id = " + userId +
-                    " AND task = '" + selectedTask + "'";
+            String query = "UPDATE todos SET task = '" + newTask + "' WHERE user_id = " + userId + " AND task = '" + selectedTask + "'";
             Statement statement = connection.createStatement();
             statement.executeUpdate(query);
 
             tasks.set(tasks.indexOf(selectedTask), newTask);
             listView.refresh();
             listAdd.clear();
+
+            // Log task update
+            Log log = new Log("INFO", "Task updated by user: " + LogginUser.getUser().getName() + ", old details: " + selectedTask + ", new details: " + newTask, new java.util.Date().toString());
+            db.create(log);
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -134,15 +140,16 @@ public class TodoController {
         if (selectedTask == null) return;
 
         try {
-            // Get the logged-in user's ID
             int userId = LogginUser.getUser().getId();
-
-            // Insecure query: Directly concatenating user inputs
             String query = "DELETE FROM todos WHERE user_id = " + userId + " AND task = '" + selectedTask + "'";
             Statement statement = connection.createStatement();
             statement.executeUpdate(query);
 
             tasks.remove(selectedTask);
+
+            // Log task deletion
+            Log log = new Log("INFO", "Task deleted by user: " + LogginUser.getUser().getName() + ", details: " + selectedTask, new java.util.Date().toString());
+            db.create(log);
         } catch (SQLException e) {
             e.printStackTrace();
         }
