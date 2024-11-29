@@ -1,4 +1,3 @@
-
 package controller;
 
 import database.Database;
@@ -13,13 +12,14 @@ import javafx.scene.layout.AnchorPane;
 import model.Log;
 import model.LogginUser;
 import model.User;
+import security.Encryption;
 
 import java.io.IOException;
 import java.net.URL;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -42,7 +42,7 @@ public class LoginController implements Initializable {
     @FXML
     private TextField textUserPassword;
 
-    UserDAOImpl db;
+    private UserDAOImpl db;
     private static final int MAX_ATTEMPTS = 3; // Max incorrect attempts
     private Map<String, Integer> failedAttempts = new HashMap<>(); // Track failed attempts per user
 
@@ -52,24 +52,19 @@ public class LoginController implements Initializable {
         String password = textUserPassword.getText().trim();
 
         if (name.isEmpty() || password.isEmpty()) {
-            // Show alert for missing fields
-            Alert alert = new Alert(Alert.AlertType.WARNING);
-            alert.setTitle("Login Error");
-            alert.setHeaderText("Fields Missing");
-            alert.setContentText("Please enter both username and password.");
-            alert.showAndWait();
+            showAlert(Alert.AlertType.WARNING, "Login Error", "Fields Missing", "Please enter both username and password.");
             return;
         }
 
         Connection con = Database.getConnection();
 
-        // Query to retrieve the user
-        String query = "SELECT * FROM user WHERE name = '" + name + "'";
-        Statement stmt = con.createStatement();
-        ResultSet rs = stmt.executeQuery(query);
+        String query = "SELECT * FROM user WHERE name = ?";
+        PreparedStatement stmt = con.prepareStatement(query);
+        stmt.setString(1, name);
+
+        ResultSet rs = stmt.executeQuery();
 
         if (rs.next()) {
-            // Map the result set to a User object
             User user = new User(
                     rs.getInt("id"),
                     rs.getString("name"),
@@ -80,79 +75,66 @@ public class LoginController implements Initializable {
             );
 
             if (user.getLock() == User.LOCK.LOCKED) {
-                // Show error alert for locked account
-                Alert alert = new Alert(Alert.AlertType.ERROR);
-                alert.setTitle("Account Locked");
-                alert.setHeaderText("Your account is locked.");
-                alert.setContentText("Please contact the administrator.");
-                alert.showAndWait();
+                showAlert(Alert.AlertType.ERROR, "Account Locked", "Your account is locked.", "Please contact the administrator.");
                 return;
             }
 
-            if (user.getPassword().equals(password)) {
-                // Successful login
+            if (Encryption.verifyPassword(password, user.getPassword())) {
                 LogginUser.setUser(user);
-                failedAttempts.remove(name); // Reset failed attempts on successful login
-
-                // Check user role and navigate accordingly
-                String dest;
-                switch (user.getRole()) {
-                    case ADMIN:
-                        dest = "/view/Admin-view.fxml"; // Admin view
-                        break;
-                    case USER:
-                        dest = "/view/Todo-view.fxml"; // Normal user view
-                        break;
-                    default:
-                        dest = "/view/Todo-view.fxml"; // Default to normal user view
-                        break;
-                }
-
-                MainApplication.navigateTo(anchorPaneLogin, dest);
+                failedAttempts.remove(name);
+                navigateToRoleView(user.getRole());
             } else {
-                handleFailedAttempt(name, stmt, rs); // Handle incorrect password
+                handleFailedAttempt(name, con); // Incorrect password
             }
         } else {
-            handleFailedAttempt(name, stmt, rs); // Handle unknown user
+            handleFailedAttempt(name, con); // User not found
         }
 
         Database.closeResultSet(rs);
-        Database.closeStatement(stmt);
+        Database.closePreparedStatement(stmt);
         Database.closeConnection(con);
     }
 
-    private void handleFailedAttempt(String name, Statement stmt, ResultSet rs) throws SQLException {
+    private void handleFailedAttempt(String name, Connection con) throws SQLException {
         int attempts = failedAttempts.getOrDefault(name, 0) + 1;
         failedAttempts.put(name, attempts);
 
         if (attempts >= MAX_ATTEMPTS) {
             // Lock the user account
-            String lockQuery = "UPDATE user SET lock = 'LOCKED' WHERE name = '" + name + "'";
-            stmt.executeUpdate(lockQuery);
+            String lockQuery = "UPDATE user SET lock = 'LOCKED' WHERE name = ?";
+            PreparedStatement lockStmt = con.prepareStatement(lockQuery);
+            lockStmt.setString(1, name);
+            lockStmt.executeUpdate();
 
-            // Log the lock event
             MainApplication.logData(new Log(0, "WARN", "User " + name + " was locked due to too many failed login attempts.", new Date().toString()));
 
-            // Show account locked alert
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Account Locked");
-            alert.setHeaderText("Too Many Failed Attempts");
-            alert.setContentText("Your account has been locked. Please contact the administrator.");
-            alert.showAndWait();
+            showAlert(Alert.AlertType.ERROR, "Account Locked", "Too Many Failed Attempts", "Your account has been locked. Please contact the administrator.");
+
+            Database.closePreparedStatement(lockStmt);
         } else {
-            // Show error alert for incorrect credentials
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Login Failed");
-            alert.setHeaderText("Invalid Username or Password");
-            alert.setContentText("Attempts remaining: " + (MAX_ATTEMPTS - attempts));
-            alert.showAndWait();
+            showAlert(Alert.AlertType.ERROR, "Login Failed", "Invalid Username or Password", "Attempts remaining: " + (MAX_ATTEMPTS - attempts));
         }
+    }
+
+    private void navigateToRoleView(User.ROLE role) throws IOException {
+        String dest;
+        switch (role) {
+            case ADMIN:
+                dest = "/view/Admin-view.fxml";
+                break;
+            case USER:
+                dest = "/view/Todo-view.fxml";
+                break;
+            default:
+                dest = "/view/Todo-view.fxml";
+                break;
+        }
+        MainApplication.navigateTo(anchorPaneLogin, dest);
     }
 
     @FXML
     void onRegisterButtonClicked(ActionEvent event) throws IOException {
-        String dest = "/view/register-view.fxml";
-        MainApplication.navigateTo(anchorPaneLogin, dest);
+        MainApplication.navigateTo(anchorPaneLogin, "/view/register-view.fxml");
     }
 
     @Override
@@ -164,5 +146,13 @@ public class LoginController implements Initializable {
             textUserName.setText(currentUser.getName());
             textUserPassword.setText(currentUser.getPassword());
         }
+    }
+
+    private void showAlert(Alert.AlertType type, String title, String header, String content) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.showAndWait();
     }
 }

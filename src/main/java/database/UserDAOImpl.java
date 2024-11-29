@@ -107,19 +107,25 @@ public class UserDAOImpl implements UserDAO {
     @Override
     public int checkExists(String name, String password) throws SQLException {
         Connection con = Database.getConnection();
-        String query = "SELECT COUNT(*) FROM user WHERE name = ? AND password = ?";
+        String query = "SELECT password FROM user WHERE name = ?";
         PreparedStatement ps = con.prepareStatement(query);
         ps.setString(1, name);
-        ps.setString(2, Encryption.hashPassword(password)); // Hash the password before comparing
 
         ResultSet rs = ps.executeQuery();
-        int count = rs.next() ? rs.getInt(1) : 0;
+        int exists = 0;
+
+        if (rs.next()) {
+            String hashedPassword = rs.getString("password");
+            if (Encryption.verifyPassword(password, hashedPassword)) {
+                exists = 1; // User exists with correct credentials
+            }
+        }
 
         Database.closeResultSet(rs);
         Database.closePreparedStatement(ps);
         Database.closeConnection(con);
 
-        return count;
+        return exists;
     }
 
     @Override

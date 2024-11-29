@@ -13,10 +13,12 @@ import javafx.scene.layout.AnchorPane;
 import model.LogginUser;
 import model.User;
 import register.PasswordFactory;
+import security.Encryption;
 
 import java.io.IOException;
 import java.net.URL;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ResourceBundle;
@@ -52,33 +54,33 @@ public class RegisterController implements Initializable {
         String email = textEmail.getText().trim();
 
         if (name.isBlank() || password1.isBlank() || password2.isBlank() || email.isBlank()) {
-            // Reflecting user inputs in feedback message
-            labelFeedback.setText("Fill in all fields. Name entered: " + name + ", Email entered: " + email);
+            labelFeedback.setText("All fields are required.");
             return;
         }
 
         if (!password1.equals(password2)) {
-            // Reflecting user inputs in error message
-            labelFeedback.setText("Passwords do not match for user: " + name + " with email: " + email);
+            labelFeedback.setText("Passwords do not match.");
             return;
         }
 
+        // Hash the password for secure storage
+        String hashedPassword = Encryption.hashPassword(password1);
+
         Connection con = Database.getConnection();
+        String query = "INSERT INTO user (name, password, email) VALUES (?, ?, ?)";
 
-        // Insecure query with concatenated user inputs
-        String query = "INSERT INTO user (name, password, email) VALUES ('" +
-                name + "', '" + password1 + "', '" + email + "')";
-        Statement stmt = con.createStatement();
-        stmt.executeUpdate(query);
-
-        // Insecure: Exposing sensitive data in feedback
-        labelFeedback.setText("User registered with Name=" + name + " and Password=" + password1);
-
-        Database.closeStatement(stmt);
-        Database.closeConnection(con);
-
-        String dest = "/view/login-view.fxml";
-        MainApplication.navigateTo(anchorPaneRegister, dest);
+        try (PreparedStatement ps = con.prepareStatement(query)) {
+            ps.setString(1, name);
+            ps.setString(2, hashedPassword);
+            ps.setString(3, email);
+            ps.executeUpdate();
+            labelFeedback.setText("User registered successfully!");
+        } catch (SQLException e) {
+            labelFeedback.setText("Error: Unable to register user.");
+            e.printStackTrace();
+        } finally {
+            Database.closeConnection(con);
+        }
     }
 
     @Override
