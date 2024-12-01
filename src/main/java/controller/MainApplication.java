@@ -25,7 +25,7 @@ public class MainApplication extends Application {
         Cabbage.setSprouts();
         setUpObserver();
         FXMLLoader fxmlLoader = new FXMLLoader(MainApplication.class.getResource("/view/main-view.fxml"));
-        Scene scene = new Scene(fxmlLoader.load(), 320, 240);
+        Scene scene = new Scene(fxmlLoader.load());
         stage.setTitle("Todo App");
         stage.setScene(scene);
         stage.show();

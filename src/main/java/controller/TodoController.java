@@ -59,10 +59,10 @@ public class TodoController {
         tasks.clear();
 
         try {
-            // Get the logged-in user's ID
+            // Get the logged in user's ID
             int userId = LogginUser.getUser().getId();
 
-            // Fetch tasks for the logged-in user
+            // Fetch tasks for the logged in user
             String query = "SELECT task FROM todos WHERE user_id = ?";
             PreparedStatement statement = connection.prepareStatement(query);
             statement.setInt(1, userId);
@@ -114,7 +114,7 @@ public class TodoController {
         try {
             int userId = LogginUser.getUser().getId();
 
-            // Update the task for the logged-in user
+            // Update the task for the logged in user
             String query = "UPDATE todos SET task = ? WHERE user_id = ? AND task = ?";
             PreparedStatement statement = connection.prepareStatement(query);
             statement.setString(1, newTask);

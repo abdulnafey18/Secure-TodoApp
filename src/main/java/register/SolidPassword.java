@@ -95,8 +95,11 @@ public class SolidPassword {
                 digest.reset();
                 digest.update(password1.getBytes("utf8"));
                 sha1 = String.format("%040x", new BigInteger(1, digest.digest()));
+                System.out.println("Generated SHA-1: " + sha1);
             } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
+                System.err.println("Error generating SHA-1 hash");
                 e.printStackTrace();
+                return false;
             }
 
             String prefixHash = sha1.substring(0, 5).toUpperCase();
@@ -104,28 +107,30 @@ public class SolidPassword {
             OkHttpClient client = new OkHttpClient();
             String url = pawned + prefixHash;
 
+            System.out.println("API URL: " + url);
+
             Request request = new Request.Builder().url(url).build();
             try (Response response = client.newCall(request).execute();
                  ResponseBody body = response.body()) {
                 if (body != null) {
                     String hashes = body.string();
-                    String lines[] = hashes.split("\\r?\\n");
-                    //System.out.println("return " + lines.length);
+                    System.out.println("API Response: " + hashes);
+                    String[] lines = hashes.split("\\r?\\n");
                     for (String line : lines) {
-                        //System.out.println("hashes found "+line);
+                        System.out.println("Checking hash line: " + line);
                         if (line.startsWith(suffixHash)) {
-                            System.out.println(
-                                    "password found, count: " + line.substring(line.indexOf(":") + 1));
+                            System.out.println("Password found, count: " + line.substring(line.indexOf(":") + 1));
                             result = true;
                         }
                     }
+                } else {
+                    System.err.println("API response body is null");
                 }
-
             } catch (IOException e) {
-                result = false;
-                System.out.println("Not connected to the Internet");
+                System.err.println("Error connecting to Have I Been Pwned API");
                 e.printStackTrace();
             }
+
             return result;
         }
     }

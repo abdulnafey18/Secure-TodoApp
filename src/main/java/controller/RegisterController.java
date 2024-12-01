@@ -53,19 +53,33 @@ public class RegisterController implements Initializable {
         String password2 = textConfirmPassword.getText().trim();
         String email = textEmail.getText().trim();
 
+        // Validate if fields are empty
         if (name.isBlank() || password1.isBlank() || password2.isBlank() || email.isBlank()) {
             labelFeedback.setText("All fields are required.");
             return;
         }
 
+        // Validate if passwords match
         if (!password1.equals(password2)) {
             labelFeedback.setText("Passwords do not match.");
             return;
         }
 
-        // Hash the password for secure storage
+        // Validate password strength
+        PasswordFactory passwordFactory = new PasswordFactory();
+        String validationMessage = passwordFactory.confirmPassworValid(password1, password2);
+        System.out.println(validationMessage);
+        labelFeedback.setText(validationMessage);
+
+        // Proceed only if the password passes all checks
+        if (!validationMessage.equals("OK")) {
+            return;
+        }
+
+        // Hash the password and store it securely
         String hashedPassword = Encryption.hashPassword(password1);
 
+        // Insert the user into the database
         Connection con = Database.getConnection();
         String query = "INSERT INTO user (name, password, email) VALUES (?, ?, ?)";
 
@@ -75,6 +89,9 @@ public class RegisterController implements Initializable {
             ps.setString(3, email);
             ps.executeUpdate();
             labelFeedback.setText("User registered successfully!");
+            // Navigate to the login page
+            String dest = "/view/login-view.fxml";
+            MainApplication.navigateTo(anchorPaneRegister, dest);
         } catch (SQLException e) {
             labelFeedback.setText("Error: Unable to register user.");
             e.printStackTrace();

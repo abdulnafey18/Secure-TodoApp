@@ -12,7 +12,7 @@ public  class LogDAOImpl implements LogDAO<Log>{
     @Override
     public int create(Log log) throws SQLException {
         String sql = "INSERT INTO log (level, message, created) VALUES (?, ?, ?)";
-        // Use try-with-resources to manage Connection and PreparedStatement
+        // Use try resources to manage Connection and PreparedStatement
         try (Connection con = Database.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, log.getLevel());
@@ -84,7 +84,6 @@ public  class LogDAOImpl implements LogDAO<Log>{
         WARN,
         INFO,
         DEBUG,
-        TRACE
     }
 
 }
