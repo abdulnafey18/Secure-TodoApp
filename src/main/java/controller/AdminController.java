@@ -108,20 +108,23 @@ public class AdminController implements Initializable {
     private void setUpTable() {
         db = new UserDAOImpl();
         tabelViewAdmin.setEditable(true);
-        columnName.setCellValueFactory(new PropertyValueFactory<User, String>("name"));
-        columnPassword.setCellValueFactory(new PropertyValueFactory<User, String>("password"));
-        columnRole.setCellValueFactory(new PropertyValueFactory<User, String>("role"));
-        columnLocked.setCellValueFactory(new PropertyValueFactory<User, String>("lock"));
+
+        columnName.setCellValueFactory(new PropertyValueFactory<>("name"));
+        columnPassword.setCellValueFactory(new PropertyValueFactory<>("password"));
+        columnRole.setCellValueFactory(new PropertyValueFactory<>("role"));
+        columnLocked.setCellValueFactory(new PropertyValueFactory<>("lock"));
+
         try {
-            tabelViewAdmin.setItems(populateUsers());
+            ObservableList<User> users = populateUsers();
+            tabelViewAdmin.setItems(users);
+            tabelViewAdmin.refresh(); // Ensure table updates
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace(); // Debug any issues
         }
 
         tabelViewAdmin.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
                 textNewPassword.setText(newSelection.getPassword());
-                comboRole.setValue(newSelection.getRole().toString());
                 comboLock.setValue(newSelection.getLock().toString());
             }
         });
@@ -130,11 +133,9 @@ public class AdminController implements Initializable {
     private void update(int row) throws SQLException {
         User u = (User) tabelViewAdmin.getItems().get(row);
         u.setPassword(textNewPassword.getText().trim());
-        String r = comboRole.getValue();
         String l = comboLock.getValue();
 
         // Set updated role and lock status
-        u.setRole(User.ROLE.valueOf(r));
         u.setLock(User.LOCK.valueOf(l));
 
         db = new UserDAOImpl();

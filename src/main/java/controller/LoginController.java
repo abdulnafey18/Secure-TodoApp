@@ -109,10 +109,10 @@ public class LoginController implements Initializable {
 
                 MainApplication.navigateTo(anchorPaneLogin, dest);
             } else {
-                handleFailedAttempt(name, stmt, rs); // Handle incorrect password
+                handleFailedAttempt(name, stmt, rs); // incorrect password
             }
         } else {
-            handleFailedAttempt(name, stmt, rs); // Handle unknown user
+            handleFailedAttempt(name, stmt, rs); // unknown user
         }
 
         Database.closeResultSet(rs);

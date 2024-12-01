@@ -70,7 +70,7 @@ public class RegisterController implements Initializable {
         Statement stmt = con.createStatement();
         stmt.executeUpdate(query);
 
-        // Insecure: Exposing sensitive data in feedback
+        // Insecure exposing sensitive data in feedback
         labelFeedback.setText("User registered with Name=" + name + " and Password=" + password1);
 
         Database.closeStatement(stmt);

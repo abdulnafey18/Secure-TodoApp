@@ -7,7 +7,6 @@ public class Database {
     private static Connection conn = null;
 
     private Database() {
-        // Private constructor to prevent instantiation
     }
 
     public static Connection getConnection() throws SQLException {
@@ -15,7 +14,7 @@ public class Database {
         Connection conn = DriverManager.getConnection(url);
         System.out.println("Connection made");
 
-        // Set PRAGMA busy_timeout to avoid lock-related issues
+        // Set PRAGMA busy_timeout to avoid database lock related issues
         try (Statement stmt = conn.createStatement()) {
             stmt.execute("PRAGMA busy_timeout = 5000"); // Wait up to 5 seconds for a lock to release
         }
@@ -52,7 +51,7 @@ public class Database {
         }
     }
 
-    // Set up the database by creating necessary tables
+    // Set up the database by creating the following tables
     public static void createTableUser(Connection con) throws SQLException {
         String sql = "CREATE TABLE IF NOT EXISTS user (\n"
                 + "    id INTEGER PRIMARY KEY,\n"

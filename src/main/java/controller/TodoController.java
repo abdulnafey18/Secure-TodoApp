@@ -41,10 +41,6 @@ public class TodoController {
     private ObservableList<String> tasks = FXCollections.observableArrayList();
 
     private Connection connection;
-    private int userId = 1; // Assuming a logged-in user with ID 1 for simplicity
-
-
-    // Add this line here:
     private LogDAOImpl db = new LogDAOImpl();
 
     @FXML
@@ -90,6 +86,8 @@ public class TodoController {
 
         try {
             int userId = LogginUser.getUser().getId();
+
+            // SQL Injection insecure insertion of the new task into database
             String escapedTask = newTask.replace("'", "''");
             String query = "INSERT INTO todos (user_id, task) VALUES (" + userId + ", '" + escapedTask + "')";
             Statement statement = connection.createStatement();
@@ -118,6 +116,8 @@ public class TodoController {
 
         try {
             int userId = LogginUser.getUser().getId();
+
+            // SQL Injection insecure updation of the task for the logged in user
             String query = "UPDATE todos SET task = '" + newTask + "' WHERE user_id = " + userId + " AND task = '" + selectedTask + "'";
             Statement statement = connection.createStatement();
             statement.executeUpdate(query);
@@ -141,6 +141,7 @@ public class TodoController {
 
         try {
             int userId = LogginUser.getUser().getId();
+            // SQL injection insecure deletion of the selected task for the logged-in user
             String query = "DELETE FROM todos WHERE user_id = " + userId + " AND task = '" + selectedTask + "'";
             Statement statement = connection.createStatement();
             statement.executeUpdate(query);
