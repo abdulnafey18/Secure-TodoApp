@@ -20,10 +20,8 @@ import java.util.Date;
 
 public class MainApplication extends Application {
     static Subject logSubject = null;
-
     @Override
     public void start(Stage stage) throws IOException {
-        // Initialize application logic
         Cabbage.setSprouts();
         setUpObserver();
         FXMLLoader fxmlLoader = new FXMLLoader(MainApplication.class.getResource("/view/main-view.fxml"));
@@ -31,20 +29,18 @@ public class MainApplication extends Application {
         stage.setTitle("Todo App");
         stage.setScene(scene);
         stage.show();
-
-        // Add close request handler
         stage.setOnCloseRequest(event -> {
             event.consume();
             logOut(stage);
         });
     }
 
-    public void logOut(Stage stage) {
+    public void logOut(Stage stage){
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Logout");
         alert.setHeaderText("You are about to Exit");
         alert.setContentText("");
-        if (alert.showAndWait().get() == ButtonType.OK) {
+        if(alert.showAndWait().get() == ButtonType.OK){
             System.out.println("Exit program ");
             LogginUser.setUser(new User());
             stage.close();
@@ -52,46 +48,35 @@ public class MainApplication extends Application {
     }
 
     public static void navigateTo(AnchorPane pane, String page) throws IOException {
+        // String dest = "/view/login-view.fxml";
         Stage stage = (Stage) pane.getScene().getWindow();
         Parent root = FXMLLoader.load(MainApplication.class.getResource(page));
         Scene scene = new Scene(root);
         stage.setScene(scene);
         stage.show();
+
     }
 
-    public static void setUpObserver() {
+    public static void setUpObserver()  {
         Observer observer1 = new FileObserver();
         Observer observer2 = new FileObjectObserver();
         Observer observer3 = new DatabaseObserver();
-        logSubject = new LogSubject(new Log(0, "INFO", "log message 1", new Date().toString()));
+        logSubject = new LogSubject(new Log(0,"INFO","log message 1",new Date().toString()));
         logSubject.subscribe(observer1);
         logSubject.subscribe(observer2);
         logSubject.subscribe(observer3);
     }
-
-    public static void logData(Log log) {
+    public static void logData(Log log){
         try {
             logSubject.notifyObservers(log);
-        } catch (SQLException | IOException e) {
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
     public static void main(String[] args) {
-        try {
-            // Start the Jetty server in a separate thread
-            new Thread(() -> {
-                try {
-                    server.ServerInitializer.startServer();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }).start();
-
-            // Launch the JavaFX application
-            launch();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        launch();
     }
 }

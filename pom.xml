@@ -57,6 +57,11 @@
 
         <!-- OkHttp -->
         <dependency>
+            <groupId>com.squareup.okhttp</groupId>
+            <artifactId>okhttp-urlconnection</artifactId>
+            <version>2.7.5</version>
+        </dependency>
+        <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>okhttp</artifactId>
             <version>4.11.0</version>
@@ -69,17 +74,6 @@
             <version>0.4</version>
         </dependency>
 
-        <!-- Jetty Dependencies -->
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-server</artifactId>
-            <version>9.4.48.v20220622</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-servlet</artifactId>
-            <version>9.4.48.v20220622</version>
-        </dependency>
     </dependencies>
 
     <build>
@@ -100,14 +94,18 @@
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>0.0.8</version>
-                <configuration>
-                    <mainClass>controller.MainApplication</mainClass>
-                </configuration>
                 <executions>
                     <execution>
-                        <goals>
-                            <goal>run</goal>
-                        </goals>
+                        <id>default-cli</id>
+                        <configuration>
+                            <mainClass>com.example.Todoapp.controller.MainApplication</mainClass>
+                            <launcher>app</launcher>
+                            <jlinkZipName>app</jlinkZipName>
+                            <jlinkImageName>app</jlinkImageName>
+                            <noManPages>true</noManPages>
+                            <stripDebug>true</stripDebug>
+                            <noHeaderFiles>true</noHeaderFiles>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
