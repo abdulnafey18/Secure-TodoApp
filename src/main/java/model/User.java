@@ -1,36 +1,36 @@
 package model;
 
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-
 public class User {
     private int id;
     private String name;
     private String password;
     private String email;
-    public ObjectProperty<LOCK> lock;
-    public ObjectProperty<ROLE> role;
+    private LOCK lock; // Lock status (LOCKED or UNLOCKED)
+    private ROLE role; // User role (ADMIN, USER)
 
+    // Default Constructor
     public User() {
         this.id = 0;
         this.name = "";
         this.password = "";
         this.email = "";
-        this.lock = new SimpleObjectProperty<>(LOCK.UNLOCKED); // Default to UNLOCKED
-        this.role = new SimpleObjectProperty<>(ROLE.USER);     // Default to USER
+        this.lock = LOCK.UNLOCKED; // Default to UNLOCKED
+        this.role = ROLE.USER;     // Default to USER
     }
 
-    public User(Integer id, String name, String password, String email, String role, String lock) {
+    // Parameterized Constructor
+    public User(int id, String name, String password, String email, String role, String lock) {
         this.id = id;
         this.name = name;
         this.password = password;
         this.email = email;
 
         // Handle null values and assign defaults
-        this.role = new SimpleObjectProperty<>(ROLE.valueOf(role != null ? role : "USER"));
-        this.lock = new SimpleObjectProperty<>(LOCK.valueOf(lock != null ? lock : "UNLOCKED"));
+        this.role = role != null ? ROLE.valueOf(role.toUpperCase()) : ROLE.USER;
+        this.lock = lock != null ? LOCK.valueOf(lock.toUpperCase()) : LOCK.UNLOCKED;
     }
 
+    // Getters and Setters
     public int getId() {
         return id;
     }
@@ -64,29 +64,33 @@ public class User {
     }
 
     public LOCK getLock() {
-        return lock.get();
-    }
-
-    public ObjectProperty<LOCK> lockProperty() {
         return lock;
     }
 
     public void setLock(LOCK lock) {
-        this.lock.set(lock);
+        this.lock = lock;
     }
 
     public ROLE getRole() {
-        return role.get();
-    }
-
-    public ObjectProperty<ROLE> roleProperty() {
         return role;
     }
 
     public void setRole(ROLE role) {
-        this.role.set(role);
+        this.role = role;
     }
 
-    public enum LOCK {LOCKED, UNLOCKED}
-    public enum ROLE {ADMIN, USER, TEST}
+    // Enums for Role and Lock Status
+    public enum LOCK { LOCKED, UNLOCKED }
+    public enum ROLE { ADMIN, USER }
+
+    @Override
+    public String toString() {
+        return "User{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", email='" + email + '\'' +
+                ", lock=" + lock +
+                ", role=" + role +
+                '}';
+    }
 }

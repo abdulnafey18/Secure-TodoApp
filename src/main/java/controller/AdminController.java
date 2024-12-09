@@ -1,196 +1,126 @@
 package controller;
 
+import database.UserDAO;
 import database.UserDAOImpl;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javafx.event.ActionEvent;
-import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.fxml.Initializable;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.scene.control.*;
-import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.layout.AnchorPane;
-import javafx.stage.Stage;
-import model.Log;
-import model.LogginUser;
+import database.LogDAO;
+import database.LogDAOImpl;
 import model.User;
+import model.Log;
 
-import java.io.IOException;
-import java.net.URL;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import jakarta.servlet.http.HttpSession;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
-import java.util.ResourceBundle;
+import java.util.Map;
 
-public class AdminController implements Initializable {
+@RestController
+@RequestMapping("/api/admin")
+public class AdminController {
 
-    @FXML
-    private AnchorPane anchorPaneAdmin;
+    private final UserDAO userDAO;
+    private final LogDAO logDAO;
 
-    @FXML
-    private Button btnBack;
-
-    @FXML
-    private Button btnDelete;
-
-    @FXML
-    private TableView<User> tabelViewAdmin;
-
-    @FXML
-    private TableColumn<User, String> columnName;
-
-    @FXML
-    private TableColumn<User, String> columnPassword;
-
-    @FXML
-    private TableColumn<User, String> columnRole;
-
-    @FXML
-    private TableColumn<User, String> columnLocked;
-
-    @FXML
-    private ComboBox<String> comboLock;
-
-    @FXML
-    private Button btnLogMonitor;
-
-    @FXML
-    private ComboBox<String> comboRole;
-
-    @FXML
-    private Label labelInfo;
-
-    @FXML
-    private TextField textNewPassword;
-
-    private UserDAOImpl db;
-
-    private ObservableList<String> roles;
-    private ObservableList<String> lock;
-    private User currentUser;
-
-    @FXML
-    void onBackButtonClicked(ActionEvent event) throws IOException {
-        String dest = "/view/login-view.fxml";
-        MainApplication.navigateTo(anchorPaneAdmin, dest);
+    public AdminController() {
+        this.userDAO = new UserDAOImpl(); // Directly use the DAO implementation
+        this.logDAO = new LogDAOImpl();   // Directly use the DAO implementation
     }
 
-    @FXML
-    void onDeleteButtonClicked(ActionEvent event) throws IOException, SQLException {
-        int row = tabelViewAdmin.getSelectionModel().getSelectedIndex();
-        if (row >= 0) {
-            delete(row);
-            tabelViewAdmin.setItems(populateUsers());
-        }
-    }
-
-    @FXML
-    void onLogMonitorButtonClicked(ActionEvent event) throws IOException {
-        String dest = "/view/log-view.fxml"; // Path to your Log View FXML file
-        MainApplication.navigateTo(anchorPaneAdmin, dest);
-    }
-
-    @FXML
-    void onUpdateButtonClicked(ActionEvent event) throws SQLException {
-        int row = tabelViewAdmin.getSelectionModel().getSelectedIndex();
-        if (row >= 0) {
-            update(row);
-            textNewPassword.setText("");
-            comboRole.setValue(roles.get(2));
-            comboLock.setValue(lock.get(0));
-            tabelViewAdmin.setItems(populateUsers());
-        }
-    }
-
-    private void setUpTable() {
-        db = new UserDAOImpl();
-        tabelViewAdmin.setEditable(true);
-
-        columnName.setCellValueFactory(new PropertyValueFactory<>("name"));
-        columnPassword.setCellValueFactory(new PropertyValueFactory<>("password"));
-        columnRole.setCellValueFactory(new PropertyValueFactory<>("role"));
-        columnLocked.setCellValueFactory(new PropertyValueFactory<>("lock"));
-
+    @GetMapping("/users")
+    public List<User> getAllUsers(HttpSession session) {
         try {
-            ObservableList<User> users = populateUsers();
-            tabelViewAdmin.setItems(users);
-            tabelViewAdmin.refresh(); // Ensure table updates
+            User currentUser = (User) session.getAttribute("currentUser");
+            if (currentUser == null) {
+                throw new RuntimeException("Current user not logged in.");
+            }
+            return userDAO.readAll();
         } catch (SQLException e) {
-            e.printStackTrace(); // Debug any issues
+            throw new RuntimeException("Error fetching users: " + e.getMessage(), e);
         }
+    }
 
-        tabelViewAdmin.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
-            if (newSelection != null) {
-                textNewPassword.setText(newSelection.getPassword());
-                comboLock.setValue(newSelection.getLock().toString());
+    @PutMapping("/users/{id}/lock")
+    public ResponseEntity<?> lockUser(@PathVariable int id, @RequestParam boolean locked, HttpSession session) {
+        try {
+            // Check if the current user is logged in
+            User currentUser = (User) session.getAttribute("currentUser");
+            if (currentUser == null) {
+                return ResponseEntity.status(401).body(Map.of("success", false, "message", "Current user not logged in"));
             }
-        });
-    }
 
-    private void update(int row) throws SQLException {
-        User u = (User) tabelViewAdmin.getItems().get(row);
-        u.setPassword(textNewPassword.getText().trim());
-        String l = comboLock.getValue();
-
-        // Set updated role and lock status
-        u.setLock(User.LOCK.valueOf(l));
-
-        db = new UserDAOImpl();
-        db.update(u);
-
-        // Log the lock/unlock action
-        if ("LOCKED".equalsIgnoreCase(l)) {
-            MainApplication.logData(new Log(0, "INFO", "User " + u.getName() + " was locked.", new Date().toString()));
-        } else if ("UNLOCKED".equalsIgnoreCase(l)) {
-            MainApplication.logData(new Log(0, "INFO", "User " + u.getName() + " was unlocked.", new Date().toString()));
-        }
-    }
-
-    private void delete(int row) throws SQLException {
-        if (row >= 0) {
-            User u = (User) tabelViewAdmin.getItems().get(row);
-            if (currentUser != null && currentUser.getRole().toString().equals("ADMIN")) {
-                tabelViewAdmin.getItems().remove(row);
-                tabelViewAdmin.getSelectionModel().clearSelection();
-                db.delete(u);
-                MainApplication.logData(new Log(0, "WARN", u.getName() + " Deleted ", new Date().toString()));
-            } else {
-                Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("Warning ");
-                alert.setHeaderText("Unauthorized Action");
-                alert.setContentText("You do not have permission to delete this user.");
-                alert.showAndWait();
-                MainApplication.logData(new Log(0, "WARN", "Failed to Delete ", new Date().toString()));
+            // Retrieve the user to be locked/unlocked
+            User user = userDAO.readOne(id);
+            if (user == null) {
+                return ResponseEntity.status(404).body(Map.of("success", false, "message", "User not found with ID: " + id));
             }
+
+            // Update the lock status
+            user.setLock(locked ? User.LOCK.LOCKED : User.LOCK.UNLOCKED);
+            userDAO.update(user);
+
+            // Log the action
+            String action = locked ? "locked" : "unlocked";
+            Log log = new Log("WARN", currentUser.getName() + " " + action + " " + user.getName(), new Date().toString());
+            logDAO.create(log);
+
+            // Return a success response
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "User " + action + " successfully",
+                    "user", Map.of(
+                            "id", user.getId(),
+                            "name", user.getName(),
+                            "lockStatus", user.getLock().toString()
+                    )
+            ));
+        } catch (SQLException e) {
+            return ResponseEntity.status(500).body(Map.of(
+                    "success", false,
+                    "message", "Error updating user lock status: " + e.getMessage()
+            ));
         }
     }
 
-    void setUpComboBoxRoles() {
-        lock = FXCollections.observableArrayList();
-        lock.add(User.LOCK.LOCKED.toString());
-        lock.add(User.LOCK.UNLOCKED.toString());
-        comboLock.setItems(lock);
-    }
+    @DeleteMapping("/users/{id}")
+    public ResponseEntity<?> deleteUser(@PathVariable int id, HttpSession session) {
+        try {
+            // Check if the current user is logged in
+            User currentUser = (User) session.getAttribute("currentUser");
+            if (currentUser == null) {
+                return ResponseEntity.status(401).body(Map.of("success", false, "message", "Current user not logged in."));
+            }
 
-    private ObservableList<User> populateUsers() throws SQLException {
-        UserDAOImpl db = new UserDAOImpl();
-        List<User> list = db.readAll();
-        return FXCollections.observableArrayList(list);
-    }
+            // Fetch the user by ID
+            User user = userDAO.readOne(id);
+            if (user == null) {
+                return ResponseEntity.status(404).body(Map.of("success", false, "message", "User not found with ID: " + id));
+            }
 
-    @Override
-    public void initialize(URL url, ResourceBundle resourceBundle) {
-        setUpTable();
-        setUpComboBoxRoles();
+            // Delete the user
+            userDAO.delete(user);
 
-        currentUser = LogginUser.getUser();
-        if (currentUser != null) {
-            labelInfo.setText(currentUser.getName() + " is logged In");
-        } else {
-            labelInfo.setText("");
+            // Log the delete action
+            Log log = new Log("INFO", "Admin " + currentUser.getName() + " deleted user: " + user.getName(), new Date().toString());
+            logDAO.create(log);
+
+            // Return success response
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "User deleted successfully.",
+                    "user", Map.of(
+                            "id", user.getId(),
+                            "name", user.getName()
+                    )
+            ));
+        } catch (SQLException e) {
+            // Return error response
+            return ResponseEntity.status(500).body(Map.of(
+                    "success", false,
+                    "message", "Error deleting user: " + e.getMessage()
+            ));
         }
     }
 }

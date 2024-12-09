@@ -26,3 +26,5 @@
 0:INFO :User User was unlocked. :Sun Dec 01 22:28:30 GMT 2024
 0:INFO :User User was unlocked. :Sun Dec 01 22:28:42 GMT 2024
 0:INFO :Logs accessed  :Sun Dec 01 22:28:46 GMT 2024
+Log{logId=0, level='INFO', message='Application started successfully', created='Mon Dec 09 17:49:19 GMT 2024'}
+Log{logId=0, level='INFO', message='Application started successfully', created='Mon Dec 09 17:52:26 GMT 2024'}

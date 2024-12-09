@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Viewer</title>
+    <style>
+        /* General styles */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: black;
+            color: white;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        /* Table styles */
+        table {
+            width: 80%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background-color: #1a1a1a;
+            color: white;
+        }
+
+        th, td {
+            border: 1px solid #333;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #444;
+        }
+
+        tr:hover {
+            background-color: #333;
+        }
+
+        /* Button styles */
+        button {
+            padding: 10px 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        /* View Logs button styles */
+        a button {
+            background-color: #007bff;
+        }
+
+        a button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Feedback styles */
+        #feedback {
+            margin-top: 20px;
+            font-size: 16px;
+            color: yellow;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<h1>Log Viewer</h1>
+<form id="filter-form">
+    <label for="log-level">Filter by Level:</label>
+    <select id="log-level" name="log-level">
+        <option value="">All</option>
+        <option value="INFO">INFO</option>
+        <option value="WARN">WARN</option>
+    </select>
+    <button type="submit">Filter</button>
+</form>
+<table>
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Level</th>
+        <th>Message</th>
+        <th>Timestamp</th>
+    </tr>
+    </thead>
+    <tbody id="log-table">
+    <!-- Dynamically populated via JavaScript -->
+    </tbody>
+</table>
+<div id="feedback"></div>
+<script>
+    function fetchLogs(level = '') {
+        const url = level ? `/api/logs/${level}` : '/api/logs';
+        fetch(url)
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to fetch logs');
+                return response.json();
+            })
+            .then(logs => {
+                const table = document.getElementById('log-table');
+                table.innerHTML = ''; // Clear table
+                logs.forEach(log => {
+                    const row = `<tr>
+                        <td>${log.logId}</td>
+                        <td>${log.level}</td>
+                        <td>${log.message}</td>
+                        <td>${log.created}</td>
+                    </tr>`;
+                    table.innerHTML += row;
+                });
+            })
+            .catch(error => {
+                document.getElementById('feedback').innerText = `Error: ${error.message}`;
+            });
+    }
+
+    document.getElementById('filter-form').addEventListener('submit', event => {
+        event.preventDefault();
+        const level = document.getElementById('log-level').value;
+        fetchLogs(level);
+    });
+
+    // Fetch all logs on page load
+    window.onload = () => fetchLogs();
+</script>
+</body>
+</html>

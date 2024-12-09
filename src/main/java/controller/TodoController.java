@@ -1,176 +1,117 @@
 package controller;
 
+import database.TodoDAO;
+import database.TodoDAOImpl;
+import database.UserDAO;
+import database.UserDAOImpl;
+import database.LogDAO;
 import database.LogDAOImpl;
-import javafx.event.ActionEvent;
-import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Node;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
-import javafx.scene.input.MouseEvent;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javafx.scene.control.ListView;
-import javafx.stage.Stage;
+import model.Todo;
+import model.User;
 import model.Log;
-import model.LogginUser;
 
-import java.io.IOException;
-import java.sql.*;
+import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpSession;
+import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.util.Date;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/todos")
 public class TodoController {
 
-    @FXML
-    private Button btnAdd;
+    private final TodoDAO todoDAO;
+    private final UserDAO userDAO;
+    private final LogDAO logDAO;
 
-    @FXML
-    private Button btnDelete;
-
-    @FXML
-    private Button btnEdit;
-
-    @FXML
-    private TextField listAdd;
-
-    @FXML
-    private ListView<String> listView;
-
-    private ObservableList<String> tasks = FXCollections.observableArrayList();
-
-    private Connection connection;
-    private LogDAOImpl db = new LogDAOImpl();
-
-    @FXML
-    public void initialize() {
-        connectToDatabase();
-        loadTasks();
+    public TodoController() {
+        this.todoDAO = new TodoDAOImpl();
+        this.userDAO = new UserDAOImpl();
+        this.logDAO = new LogDAOImpl();
     }
 
-    private void connectToDatabase() {
+    @GetMapping("/{userId}")
+    public List<Todo> getAllTodos(@PathVariable int userId, HttpSession session) {
         try {
-            connection = DriverManager.getConnection("jdbc:sqlite:data.db");
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void loadTasks() {
-        tasks.clear();
-
-        try {
-            // Get the logged-in user's ID
-            int userId = LogginUser.getUser().getId();
-
-            // Fetch tasks for the logged-in user
-            String query = "SELECT task FROM todos WHERE user_id = ?";
-            PreparedStatement statement = connection.prepareStatement(query);
-            statement.setInt(1, userId);
-            ResultSet resultSet = statement.executeQuery();
-
-            while (resultSet.next()) {
-                tasks.add(resultSet.getString("task"));
+            User currentUser = (User) session.getAttribute("currentUser");
+            if (currentUser == null || currentUser.getId() != userId) {
+                throw new RuntimeException("Unauthorized access or user not logged in.");
             }
-            listView.setItems(tasks);
+            return todoDAO.readAllByUserId(userId);
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new RuntimeException("Error fetching todos", e);
         }
     }
 
-    @FXML
-    private void addTask() {
-        String newTask = listAdd.getText();
-        if (newTask.isEmpty()) return;
-
+    @PostMapping
+    public Todo addTodo(@RequestBody Todo todo, HttpSession session) {
         try {
-            int userId = LogginUser.getUser().getId();
+            User currentUser = (User) session.getAttribute("currentUser");
+            if (currentUser == null) {
+                throw new RuntimeException("Current user not logged in.");
+            }
 
-            // SQL Injection insecure insertion of the new task into database
-            String escapedTask = newTask.replace("'", "''");
-            String query = "INSERT INTO todos (user_id, task) VALUES (" + userId + ", '" + escapedTask + "')";
-            Statement statement = connection.createStatement();
-            statement.executeUpdate(query);
-
-            tasks.add(newTask);
-            listView.setItems(tasks);
-            listAdd.clear();
-
-            // Log task creation
-            Log log = new Log("INFO", "Task created by user: " + LogginUser.getUser().getName() + ", details: " + newTask, new java.util.Date().toString());
-            db.create(log);
+            todo.setUserId(currentUser.getId());
+            int result = todoDAO.create(todo);
+            if (result > 0) {
+                Log log = new Log("INFO", currentUser.getName() + " added a task " + todo.getTask(), new Date().toString());
+                logDAO.create(log);
+                return todo;
+            } else {
+                throw new RuntimeException("Failed to create todo");
+            }
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new RuntimeException("Error creating todo", e);
         }
     }
 
-
-
-    @FXML
-    private void editTask() {
-        String selectedTask = listView.getSelectionModel().getSelectedItem();
-        String newTask = listAdd.getText();
-
-        if (selectedTask == null || newTask.isEmpty()) return;
-
+    @PutMapping("/{id}")
+    public Todo updateTodo(@PathVariable int id, @RequestBody Todo todo, HttpSession session) {
         try {
-            int userId = LogginUser.getUser().getId();
+            User currentUser = (User) session.getAttribute("currentUser");
+            if (currentUser == null) {
+                throw new RuntimeException("Current user not logged in.");
+            }
 
-            // SQL Injection insecure updation of the task for the logged in user
-            String query = "UPDATE todos SET task = '" + newTask + "' WHERE user_id = " + userId + " AND task = '" + selectedTask + "'";
-            Statement statement = connection.createStatement();
-            statement.executeUpdate(query);
+            Todo existingTodo = todoDAO.readOne(id);
+            if (existingTodo == null) {
+                throw new RuntimeException("Task not found.");
+            }
 
-            tasks.set(tasks.indexOf(selectedTask), newTask);
-            listView.refresh();
-            listAdd.clear();
-
-            // Log task update
-            Log log = new Log("INFO", "Task updated by user: " + LogginUser.getUser().getName() + ", old details: " + selectedTask + ", new details: " + newTask, new java.util.Date().toString());
-            db.create(log);
+            todo.setId(id);
+            int result = todoDAO.update(todo);
+            if (result > 0) {
+                Log log = new Log("INFO", currentUser.getName() + " updated task \"" + existingTodo.getTask() + "\" to \"" + todo.getTask() + "\"", new Date().toString());
+                logDAO.create(log);
+                return todo;
+            } else {
+                throw new RuntimeException("Failed to update todo");
+            }
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new RuntimeException("Error updating todo", e);
         }
     }
 
-    @FXML
-    private void deleteTask() {
-        String selectedTask = listView.getSelectionModel().getSelectedItem();
-        if (selectedTask == null) return;
-
+    @DeleteMapping("/{id}")
+    public void deleteTodoById(@PathVariable int id, HttpSession session) {
         try {
-            int userId = LogginUser.getUser().getId();
-            // SQL injection insecure deletion of the selected task for the logged-in user
-            String query = "DELETE FROM todos WHERE user_id = " + userId + " AND task = '" + selectedTask + "'";
-            Statement statement = connection.createStatement();
-            statement.executeUpdate(query);
+            User currentUser = (User) session.getAttribute("currentUser");
+            if (currentUser == null) {
+                throw new RuntimeException("Current user not logged in.");
+            }
 
-            tasks.remove(selectedTask);
-
-            // Log task deletion
-            Log log = new Log("INFO", "Task deleted by user: " + LogginUser.getUser().getName() + ", details: " + selectedTask, new java.util.Date().toString());
-            db.create(log);
+            Todo todo = todoDAO.readOne(id);
+            if (todo != null) {
+                todoDAO.delete(todo);
+                Log log = new Log("INFO", currentUser.getName() + " deleted task \"" + todo.getTask() + "\"", new Date().toString());
+                logDAO.create(log);
+            } else {
+                throw new RuntimeException("Todo not found with ID: " + id);
+            }
         } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void switchToMain(ActionEvent actionEvent) {
-        try {
-            // Load the login screen FXML
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/main-view.fxml"));
-            Parent root = loader.load();
-
-            // Get the current stage
-            Stage stage = (Stage) ((Node) actionEvent.getSource()).getScene().getWindow();
-
-            // Set the login screen scene
-            Scene scene = new Scene(root);
-            stage.setScene(scene);
-            stage.show();
-        } catch (IOException e) {
-            e.printStackTrace();
+            throw new RuntimeException("Error deleting todo", e);
         }
     }
 }

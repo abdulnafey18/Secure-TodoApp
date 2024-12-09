@@ -5,7 +5,9 @@ public class Todo {
     private int userId;
     private String task;
 
-    // Constructor
+    // Constructors
+    public Todo() {}
+
     public Todo(int id, int userId, String task) {
         this.id = id;
         this.userId = userId;
@@ -42,7 +44,6 @@ public class Todo {
         this.task = task;
     }
 
-
     @Override
     public String toString() {
         return "Todo{" +
@@ -52,4 +53,3 @@ public class Todo {
                 '}';
     }
 }
-

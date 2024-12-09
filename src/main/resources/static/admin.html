@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Page</title>
+    <style>
+        /* General styles */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: black;
+            color: white;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        /* Table styles */
+        table {
+            width: 80%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background-color: #1a1a1a;
+            color: white;
+        }
+
+        th, td {
+            border: 1px solid #333;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #444;
+        }
+
+        tr:hover {
+            background-color: #333;
+        }
+
+        /* Button styles */
+        button {
+            padding: 10px 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        /* View Logs button styles */
+        a button {
+            background-color: #007bff;
+        }
+
+        a button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Feedback styles */
+        #feedback {
+            margin-top: 20px;
+            font-size: 16px;
+            color: yellow;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<h1>Admin Panel</h1>
+<table>
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Lock Status</th>
+        <th>Actions</th>
+    </tr>
+    </thead>
+    <tbody id="user-table">
+    <!-- Dynamically populated via JavaScript -->
+    </tbody>
+</table>
+
+<!-- Button to open log.html -->
+<a href="/log.html"><button id="view-logs">View Logs</button></a>
+
+<div id="feedback"></div>
+<script>
+    // Fetch and populate user data
+    function fetchUsers() {
+        fetch('/api/admin/users')
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to fetch users');
+                return response.json();
+            })
+            .then(users => {
+                const table = document.getElementById('user-table');
+                table.innerHTML = ''; // Clear table
+                users.forEach(user => {
+                    const row = `<tr id="user-row-${user.id}">
+                        <td>${user.id}</td>
+                        <td>${user.name}</td>
+                        <td>${user.email}</td>
+                        <td>${user.role}</td>
+                        <td id="lock-status-${user.id}">${user.lock}</td>
+                        <td>
+                            <button onclick="toggleLock(${user.id}, '${user.lock}')">
+                                ${user.lock === 'UNLOCKED' ? 'Lock' : 'Unlock'}
+                            </button>
+                            <button onclick="deleteUser(${user.id})">Delete</button>
+                        </td>
+                    </tr>`;
+                    table.innerHTML += row;
+                });
+            })
+            .catch(error => {
+                document.getElementById('feedback').innerText = error.message;
+            });
+    }
+
+    // Toggle lock/unlock user
+    function toggleLock(userId, lockStatus) {
+    const locked = lockStatus === 'UNLOCKED';
+    fetch(`/api/admin/users/${userId}/lock?locked=${locked}`, { method: 'PUT' })
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to toggle lock status');
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Update lock status dynamically
+                const lockCell = document.getElementById(`lock-status-${userId}`);
+                lockCell.innerText = locked ? 'LOCKED' : 'UNLOCKED';
+
+                // Update button text
+                const button = lockCell.nextElementSibling.querySelector('button');
+                button.innerText = locked ? 'Unlock' : 'Lock';
+                button.setAttribute('onclick', `toggleLock(${userId}, '${locked ? 'LOCKED' : 'UNLOCKED'}')`);
+
+                document.getElementById('feedback').innerText = data.message;
+            } else {
+                throw new Error(data.message);
+            }
+        })
+        .catch(error => {
+            document.getElementById('feedback').innerText = error.message;
+        });
+    }
+
+    // Delete user
+    function deleteUser(userId) {
+        fetch(`/api/admin/users/${userId}`, { method: 'DELETE' })
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to delete user');
+                return response.json();
+            })
+            .then(() => {
+                // Remove the user row from the table
+                const userRow = document.getElementById(`user-row-${userId}`);
+                userRow.remove();
+
+                document.getElementById('feedback').innerText = 'User deleted successfully';
+            })
+            .catch(error => {
+                document.getElementById('feedback').innerText = error.message;
+            });
+    }
+
+    // Initial fetch of user data
+    fetchUsers();
+</script>
+</body>
+</html>

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List</title>
+    <style>
+        /* General styles */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: black;
+            color: white;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        /* Table styles */
+        table {
+            width: 80%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background-color: #1a1a1a;
+            color: white;
+        }
+
+        th, td {
+            border: 1px solid #333;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #444;
+        }
+
+        tr:hover {
+            background-color: #333;
+        }
+
+        /* Button styles */
+        button {
+            padding: 10px 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        /* Feedback styles */
+        #feedback {
+            margin-top: 20px;
+            font-size: 16px;
+            color: yellow;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<h1>Todo List</h1>
+<form id="todo-form">
+    <label for="task">New Task:</label>
+    <input type="text" id="task" name="task" required>
+    <button type="submit">Add Task</button>
+</form>
+
+<table>
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Task</th>
+        <th>Actions</th>
+    </tr>
+    </thead>
+    <tbody id="todo-table">
+    <!-- Dynamically populated via JavaScript -->
+    </tbody>
+</table>
+
+<div id="feedback"></div>
+
+<script>
+    let userId = null;
+
+    // Fetch the current logged-in user's ID
+    function getCurrentUserId() {
+        fetch('/auth/currentUser', { credentials: 'include' })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch current user');
+                }
+                return response.json();
+            })
+            .then(user => {
+                userId = user.id;
+                loadTodos();
+            })
+            .catch(error => {
+                alert("Session expired. Please log in again.");
+                window.location.href = '/login';
+            });
+    }
+
+    // Load the todo list for the user
+    function loadTodos() {
+        fetch(`/api/todos/${userId}`)
+            .then(response => response.json())
+            .then(todos => {
+                const table = document.getElementById('todo-table');
+                table.innerHTML = ''; // Clear existing rows
+                todos.forEach(todo => {
+                    const row = `<tr id="todo-row-${todo.id}">
+                        <td>${todo.id}</td>
+                        <td>${todo.task}</td>
+                        <td>
+                            <button onclick="editTodoPrompt(${todo.id}, '${todo.task}')">Edit</button>
+                            <button onclick="deleteTodoById(${todo.id})">Delete</button>
+                        </td>
+                    </tr>`;
+                    table.innerHTML += row;
+                });
+            })
+            .catch(error => console.error('Error fetching todos:', error));
+    }
+
+    // Add a new todo
+    document.getElementById('todo-form').addEventListener('submit', event => {
+        event.preventDefault();
+        if (!userId) {
+            alert("User not logged in.");
+            return;
+        }
+        const taskValue = document.getElementById('task').value;
+        fetch('/api/todos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, task: taskValue }),
+        })
+            .then(response => response.json())
+            .then(() => {
+                loadTodos();
+                document.getElementById('task').value = '';
+            })
+            .catch(error => console.error('Error adding todo:', error));
+    });
+
+    // Delete a todo
+    function deleteTodoById(id) {
+        fetch(`/api/todos/${id}`, { method: 'DELETE' })
+            .then(() => loadTodos())
+            .catch(error => console.error('Error deleting todo:', error));
+    }
+
+    // Edit a todo
+    function editTodoPrompt(id, task) {
+        const newTask = prompt("Edit task:", task);
+        if (newTask && newTask.trim() !== '') {
+            fetch(`/api/todos/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task: newTask.trim() })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to update task');
+                }
+                return response.json();
+            })
+            .then(() => {
+                loadTodos(); // Refresh tasks
+            })
+            .catch(error => {
+                console.error('Error updating task:', error);
+                alert('Failed to update task. Please try again.');
+            });
+        } else {
+            alert('Task cannot be empty.');
+        }
+    }
+
+    // Initialize the page by fetching the current user
+    window.onload = getCurrentUserId;
+</script>
+</body>
+</html>

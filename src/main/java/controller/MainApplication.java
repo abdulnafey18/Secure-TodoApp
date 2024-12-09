@@ -1,82 +1,54 @@
 package controller;
 
-import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
-import javafx.scene.layout.AnchorPane;
-import javafx.stage.Stage;
-import model.Log;
-import model.LogginUser;
-import model.User;
-import monitor.*;
 import monitor.Misc.Cabbage;
+import monitor.LogSubject;
+import monitor.DatabaseObserver;
+import monitor.FileObserver;
+import model.Log;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-import java.io.IOException;
-import java.sql.SQLException;
 import java.util.Date;
 
-public class MainApplication extends Application {
-    static Subject logSubject = null;
-    @Override
-    public void start(Stage stage) throws IOException {
-        Cabbage.setSprouts();
-        setUpObserver();
-        FXMLLoader fxmlLoader = new FXMLLoader(MainApplication.class.getResource("/view/main-view.fxml"));
-        Scene scene = new Scene(fxmlLoader.load());
-        stage.setTitle("Todo App");
-        stage.setScene(scene);
-        stage.show();
-        stage.setOnCloseRequest(event -> {
-            event.consume();
-            logOut(stage);
-        });
-    }
+@SpringBootApplication
+public class MainApplication {
 
-    public void logOut(Stage stage){
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Logout");
-        alert.setHeaderText("You are about to Exit");
-        alert.setContentText("");
-        if(alert.showAndWait().get() == ButtonType.OK){
-            System.out.println("Exit program ");
-            LogginUser.setUser(new User());
-            stage.close();
-        }
-    }
-
-    public static void navigateTo(AnchorPane pane, String page) throws IOException {
-        // String dest = "/view/login-view.fxml";
-        Stage stage = (Stage) pane.getScene().getWindow();
-        Parent root = FXMLLoader.load(MainApplication.class.getResource(page));
-        Scene scene = new Scene(root);
-        stage.setScene(scene);
-        stage.show();
-
-    }
-
-    public static void setUpObserver()  {
-        Observer observer1 = new FileObserver();
-        Observer observer2 = new FileObjectObserver();
-        Observer observer3 = new DatabaseObserver();
-        logSubject = new LogSubject(new Log(0,"INFO","log message 1",new Date().toString()));
-        logSubject.subscribe(observer1);
-        logSubject.subscribe(observer2);
-        logSubject.subscribe(observer3);
-    }
-    public static void logData(Log log){
-        try {
-            logSubject.notifyObservers(log);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    private static LogSubject logSubject;
 
     public static void main(String[] args) {
-        launch();
+        // Set up observers and initial database state
+        setUpObservers();
+        initializeDatabase();
+
+        // Log application startup
+        logData(new Log("INFO", "Application started successfully", new Date().toString()));
+
+        // Run the Spring Boot application
+        SpringApplication.run(MainApplication.class, args);
+    }
+
+    private static void initializeDatabase() {
+        try {
+            Cabbage.setSprouts(); // Initializes the database and default users
+        } catch (Exception e) {
+            logData(new Log("ERROR", "Database initialization failed: " + e.getMessage(), new Date().toString()));
+        }
+    }
+
+    private static void setUpObservers() {
+        logSubject = new LogSubject(new Log("INFO", "LogSubject Initialized", new Date().toString()));
+
+        // Add observers for database and file logging
+        logSubject.subscribe(new DatabaseObserver());
+        logSubject.subscribe(new FileObserver());
+    }
+
+    public static void logData(Log log) {
+        try {
+            logSubject.notifyObservers(log);
+        } catch (Exception e) {
+            System.err.println("Error logging data: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }

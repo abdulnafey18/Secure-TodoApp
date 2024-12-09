@@ -3,14 +3,15 @@ package model;
 import java.io.Serializable;
 
 public class Log implements Serializable {
-    public int logId;
-    public String level;
-    public String message;
+    private int logId;
+    private String level;
+    private String message;
+    private String created;
 
-    public  String created;
+    // Constructors
+    public Log() {}
 
     public Log(String level, String message, String created) {
-        this.logId = 0;
         this.level = level;
         this.message = message;
         this.created = created;
@@ -23,6 +24,7 @@ public class Log implements Serializable {
         this.created = created;
     }
 
+    // Getters and Setters
     public int getLogId() {
         return logId;
     }
@@ -56,8 +58,12 @@ public class Log implements Serializable {
     }
 
     @Override
-    public String toString(){
-        return this.logId + ":"+this.level+" :"+this.message+" :"+this.created;
+    public String toString() {
+        return "Log{" +
+                "logId=" + logId +
+                ", level='" + level + '\'' +
+                ", message='" + message + '\'' +
+                ", created='" + created + '\'' +
+                '}';
     }
-
 }

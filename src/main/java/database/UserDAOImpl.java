@@ -10,169 +10,117 @@ public class UserDAOImpl implements UserDAO {
 
     @Override
     public int create(User user) throws SQLException {
-        Connection con = Database.getConnection();
+        String sql = "INSERT INTO user (name, password, email, role, lock) VALUES ('"
+                + user.getName() + "', '"
+                + user.getPassword() + "', '"
+                + user.getEmail() + "', '"
+                + (user.getRole() != null ? user.getRole().toString() : "USER") + "', '"
+                + (user.getLock() != null ? user.getLock().toString() : "UNLOCKED") + "')";
 
-        // Use default values for role and lock if not provided
-        String role = (user.getRole() != null) ? user.getRole().toString() : "USER";
-        String lock = (user.getLock() != null) ? user.getLock().toString() : "UNLOCKED";
-
-        // Updated insert query with explicit default values
-        String query = "INSERT INTO user (name, password, email, role, lock) VALUES (?, ?, ?, ?, ?)";
-        PreparedStatement stmt = con.prepareStatement(query);
-
-        stmt.setString(1, user.getName());
-        stmt.setString(2, user.getPassword());
-        stmt.setString(3, user.getEmail());
-        stmt.setString(4, role);  // Default to USER if not set
-        stmt.setString(5, lock);  // Default to UNLOCKED if not set
-
-        int result = stmt.executeUpdate();
-
-        Database.closePreparedStatement(stmt);
-        Database.closeConnection(con);
-        return result;
+        try (Connection con = Database.getConnection();
+             Statement stmt = con.createStatement()) {
+            return stmt.executeUpdate(sql);
+        }
     }
 
     @Override
     public User readOne(int id) throws SQLException {
-        Connection con = Database.getConnection();
+        String sql = "SELECT * FROM user WHERE id = " + id;
         User user = null;
 
-        // Select query to fetch a user by id
-        String sql = "SELECT * FROM user WHERE id = " + id;
-        Statement stmt = con.createStatement();
-        ResultSet rs = stmt.executeQuery(sql);
-
-        if (rs.next()) {
-            // Map the result set to a User object
-            user = new User(
-                    rs.getInt("id"),
-                    rs.getString("name"),
-                    rs.getString("password"),
-                    rs.getString("email"),
-                    rs.getString("role"),
-                    rs.getString("lock")
-            );
+        try (Connection con = Database.getConnection();
+             Statement stmt = con.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) {
+                user = mapUser(rs);
+            }
         }
-
-        Database.closeResultSet(rs);
-        Database.closeStatement(stmt);
-        Database.closeConnection(con);
-
         return user;
     }
 
     @Override
     public int update(User user) throws SQLException {
-        Connection connection = Database.getConnection();
+        String sql = "UPDATE user SET name = '" + user.getName() + "', "
+                + "password = '" + user.getPassword() + "', "
+                + "role = '" + user.getRole().toString() + "', "
+                + "lock = '" + user.getLock().toString() + "' "
+                + "WHERE id = " + user.getId();
 
-        // Update query to modify user attributes
-        String sql = "UPDATE user SET name = '" + user.getName() +
-                "', password = '" + user.getPassword() +
-                "', role = '" + user.getRole() +
-                "', lock = '" + user.getLock() +
-                "' WHERE id = " + user.getId();
-        Statement stmt = connection.createStatement();
-        int result = stmt.executeUpdate(sql);
-
-        Database.closeStatement(stmt);
-        Database.closeConnection(connection);
-
-        return result;
+        try (Connection con = Database.getConnection();
+             Statement stmt = con.createStatement()) {
+            return stmt.executeUpdate(sql);
+        }
     }
 
     @Override
     public int delete(User user) throws SQLException {
-        Connection connection = Database.getConnection();
+        String sql = "DELETE FROM user WHERE id = " + user.getId();
 
-        // Delete query to remove a user
-        String sql = "DELETE FROM user WHERE name = '" + user.getName() +
-                "' AND password = '" + user.getPassword() + "'";
-        Statement stmt = connection.createStatement();
-        int result = stmt.executeUpdate(sql);
-
-        Database.closeStatement(stmt);
-        Database.closeConnection(connection);
-
-        return result;
+        try (Connection con = Database.getConnection();
+             Statement stmt = con.createStatement()) {
+            return stmt.executeUpdate(sql);
+        }
     }
 
     @Override
     public List<User> readAll() throws SQLException {
-        Connection con = Database.getConnection();
         String sql = "SELECT * FROM user";
         List<User> users = new ArrayList<>();
-        Statement stmt = con.createStatement();
-        ResultSet rs = stmt.executeQuery(sql);
 
-        while (rs.next()) {
-            // Map the result set to User objects and add to the list
-            User user = new User(
-                    rs.getInt("id"),
-                    rs.getString("name"),
-                    rs.getString("password"),
-                    rs.getString("email"),
-                    rs.getString("role"),
-                    rs.getString("lock")
-            );
-            users.add(user);
+        try (Connection con = Database.getConnection();
+             Statement stmt = con.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                users.add(mapUser(rs));
+            }
         }
-
-        Database.closeResultSet(rs);
-        Database.closeStatement(stmt);
-        Database.closeConnection(con);
-
         return users;
     }
 
     @Override
-    public int checkExists(String a, String b) throws SQLException {
-        Connection con = Database.getConnection();
-        int count = 0;
+    public int checkExists(String name, String password) throws SQLException {
+        String sql = "SELECT password FROM user WHERE name = '" + name + "'";
+        int exists = 0;
 
-        // Check existence of user by name and password
-        String query = "SELECT COUNT(*) FROM user WHERE name = '" + a +
-                "' AND password = '" + b + "'";
-        Statement stmt = con.createStatement();
-        ResultSet rs = stmt.executeQuery(query);
-
-        if (rs.next()) {
-            count = rs.getInt(1);
+        try (Connection con = Database.getConnection();
+             Statement stmt = con.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) {
+                String storedPassword = rs.getString("password");
+                if (password.equals(storedPassword)) {
+                    exists = 1; // User exists with matching credentials
+                }
+            }
         }
-
-        Database.closeResultSet(rs);
-        Database.closeStatement(stmt);
-        Database.closeConnection(con);
-
-        return count;
+        return exists;
     }
 
     @Override
     public User readLoggedInUser(String name, String password) throws SQLException {
-        Connection con = Database.getConnection();
+        String sql = "SELECT * FROM user WHERE name = '" + name + "'";
         User user = null;
 
-        // Select query to find a user with specific name and password
-        String query = "SELECT * FROM user WHERE name = '" + name + "' AND password = '" + password + "'";
-        Statement stmt = con.createStatement();
-        ResultSet rs = stmt.executeQuery(query);
-
-        if (rs.next()) {
-            // Map the result set to a User object
-            user = new User(
-                    rs.getInt("id"),
-                    rs.getString("name"),
-                    rs.getString("password"),
-                    rs.getString("email"),
-                    rs.getString("role"),
-                    rs.getString("lock")
-            );
+        try (Connection con = Database.getConnection();
+             Statement stmt = con.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) {
+                String storedPassword = rs.getString("password");
+                if (password.equals(storedPassword)) {
+                    user = mapUser(rs);
+                }
+            }
         }
-
-        Database.closeResultSet(rs);
-        Database.closeStatement(stmt);
-        Database.closeConnection(con);
-
         return user;
+    }
+
+    private User mapUser(ResultSet rs) throws SQLException {
+        return new User(
+                rs.getInt("id"),
+                rs.getString("name"),
+                rs.getString("password"),
+                rs.getString("email"),
+                rs.getString("role"),
+                rs.getString("lock")
+        );
     }
 }
