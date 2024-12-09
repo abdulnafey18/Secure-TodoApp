@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class UserDAOImpl implements UserDAO {
-
+    //SQL Injection mitigation
     @Override
     public int create(User user) throws SQLException {
         Connection con = Database.getConnection();
@@ -16,7 +16,7 @@ public class UserDAOImpl implements UserDAO {
 
         PreparedStatement ps = con.prepareStatement(sql);
         ps.setString(1, user.getName());
-        ps.setString(2, Encryption.hashPassword(user.getPassword())); // Securely hash the password
+        ps.setString(2, user.getPassword());
         ps.setString(3, user.getEmail());
         ps.setString(4, user.getRole() != null ? user.getRole().toString() : "USER"); // Default role
         ps.setString(5, user.getLock() != null ? user.getLock().toString() : "UNLOCKED"); // Default lock status
@@ -56,7 +56,7 @@ public class UserDAOImpl implements UserDAO {
 
         PreparedStatement ps = connection.prepareStatement(sql);
         ps.setString(1, user.getName());
-        ps.setString(2, Encryption.hashPassword(user.getPassword())); // Securely hash the password
+        ps.setString(2, user.getPassword()); // Save the hashed password directly
         ps.setString(3, user.getRole().toString());
         ps.setString(4, user.getLock().toString());
         ps.setInt(5, user.getId());
@@ -133,7 +133,10 @@ public class UserDAOImpl implements UserDAO {
         Connection con = Database.getConnection();
         User user = null;
 
-        String sql = "SELECT * FROM user WHERE name = ?";
+        System.out.println("Executing SQL: SELECT * FROM `user` WHERE name = ?");
+        System.out.println("With Parameter: name = " + name);
+
+        String sql = "SELECT * FROM `user` WHERE name = ?";
         PreparedStatement ps = con.prepareStatement(sql);
         ps.setString(1, name);
 
@@ -141,9 +144,18 @@ public class UserDAOImpl implements UserDAO {
 
         if (rs.next()) {
             String hashedPassword = rs.getString("password");
+            System.out.println("User Found: " + rs.getString("name"));
+            System.out.println("Stored Hashed Password: " + hashedPassword);
+
+            // Verify the password
             if (Encryption.verifyPassword(password, hashedPassword)) {
+                System.out.println("Password Verified Successfully");
                 user = mapUser(rs);
+            } else {
+                System.out.println("Password Verification Failed");
             }
+        } else {
+            System.out.println("No user found with name: " + name);
         }
 
         Database.closeResultSet(rs);

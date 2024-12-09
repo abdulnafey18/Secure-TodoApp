@@ -1,158 +1,73 @@
 package controller;
 
-import database.Database;
+import database.UserDAO;
 import database.UserDAOImpl;
-import javafx.event.ActionEvent;
-import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.AnchorPane;
-import model.Log;
-import model.LogginUser;
 import model.User;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import jakarta.servlet.http.HttpSession;
+import org.springframework.web.util.HtmlUtils;
 import security.Encryption;
 
-import java.io.IOException;
-import java.net.URL;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.ResourceBundle;
+// Cross site scripting mitigation
+@RestController
+@RequestMapping("/auth")
+public class LoginController {
 
-public class LoginController implements Initializable {
+    private final UserDAO userDAO;
 
-    @FXML
-    private AnchorPane anchorPaneLogin;
+    public LoginController() {
+        this.userDAO = new UserDAOImpl(); // Directly use the DAO implementation
+    }
 
-    @FXML
-    private Button btnRegisterNewUser;
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody User loginRequest, HttpSession session) {
+        try {
+            // Sanitize inputs
+            String sanitizedUsername = HtmlUtils.htmlEscape(loginRequest.getName());
+            loginRequest.setName(sanitizedUsername);
 
-    @FXML
-    private Button btnSubmitLogin;
+            if (loginRequest.getName() == null || loginRequest.getPassword() == null) {
+                return ResponseEntity.badRequest().body("Username or password is missing");
+            }
 
-    @FXML
-    private TextField textUserName;
+            // Retrieve user by username
+            User existingUser = userDAO.readLoggedInUser(loginRequest.getName(), loginRequest.getPassword());
+            if (existingUser == null) {
+                return ResponseEntity.badRequest().body("Invalid credentials");
+            }
 
-    @FXML
-    private TextField textUserPassword;
+            // Check if the user is locked
+            if (existingUser.getLock() == User.LOCK.LOCKED) {
+                return ResponseEntity.badRequest().body("User account is locked. Please contact support.");
+            }
 
-    private UserDAOImpl db;
-    private static final int MAX_ATTEMPTS = 3; // Max incorrect attempts
-    private Map<String, Integer> failedAttempts = new HashMap<>(); // Track failed attempts per user
-
-    @FXML
-    void onLoginButtonClicked(ActionEvent event) throws IOException, SQLException {
-        String name = textUserName.getText().trim();
-        String password = textUserPassword.getText().trim();
-
-        if (name.isEmpty() || password.isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "Login Error", "Fields Missing", "Please enter both username and password.");
-            return;
-        }
-
-        Connection con = Database.getConnection();
-
-        String query = "SELECT * FROM user WHERE name = ?";
-        PreparedStatement stmt = con.prepareStatement(query);
-        stmt.setString(1, name);
-
-        ResultSet rs = stmt.executeQuery();
-
-        if (rs.next()) {
-            User user = new User(
-                    rs.getInt("id"),
-                    rs.getString("name"),
-                    rs.getString("password"),
-                    rs.getString("email"),
-                    rs.getString("role"),
-                    rs.getString("lock")
+            // Verify password
+            boolean passwordMatches = Encryption.verifyPassword(
+                    loginRequest.getPassword(), existingUser.getPassword()
             );
 
-            if (user.getLock() == User.LOCK.LOCKED) {
-                showAlert(Alert.AlertType.ERROR, "Account Locked", "Your account is locked.", "Please contact the administrator.");
-                return;
+            if (!passwordMatches) {
+                return ResponseEntity.badRequest().body("Invalid credentials");
             }
 
-            if (Encryption.verifyPassword(password, user.getPassword())) {
-                LogginUser.setUser(user);
-                failedAttempts.remove(name);
-                navigateToRoleView(user.getRole());
-            } else {
-                handleFailedAttempt(name, con); // Incorrect password
-            }
-        } else {
-            handleFailedAttempt(name, con); // User not found
-        }
-
-        Database.closeResultSet(rs);
-        Database.closePreparedStatement(stmt);
-        Database.closeConnection(con);
-    }
-
-    private void handleFailedAttempt(String name, Connection con) throws SQLException {
-        int attempts = failedAttempts.getOrDefault(name, 0) + 1;
-        failedAttempts.put(name, attempts);
-
-        if (attempts >= MAX_ATTEMPTS) {
-            // Lock the user account
-            String lockQuery = "UPDATE user SET lock = 'LOCKED' WHERE name = ?";
-            PreparedStatement lockStmt = con.prepareStatement(lockQuery);
-            lockStmt.setString(1, name);
-            lockStmt.executeUpdate();
-
-            MainApplication.logData(new Log(0, "WARN", "User " + name + " was locked due to too many failed login attempts.", new Date().toString()));
-
-            showAlert(Alert.AlertType.ERROR, "Account Locked", "Too Many Failed Attempts", "Your account has been locked. Please contact the administrator.");
-
-            Database.closePreparedStatement(lockStmt);
-        } else {
-            showAlert(Alert.AlertType.ERROR, "Login Failed", "Invalid Username or Password", "Attempts remaining: " + (MAX_ATTEMPTS - attempts));
+            // Store user in session
+            session.setAttribute("currentUser", existingUser);
+            return ResponseEntity.ok(existingUser);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("An error occurred during login. Please try again.");
         }
     }
 
-    private void navigateToRoleView(User.ROLE role) throws IOException {
-        String dest;
-        switch (role) {
-            case ADMIN:
-                dest = "/view/Admin-view.fxml";
-                break;
-            case USER:
-                dest = "/view/Todo-view.fxml";
-                break;
-            default:
-                dest = "/view/Todo-view.fxml";
-                break;
+    @GetMapping("/currentUser")
+    public ResponseEntity<?> getCurrentUser(HttpSession session) {
+        User currentUser = (User) session.getAttribute("currentUser");
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body("User is not logged in");
         }
-        MainApplication.navigateTo(anchorPaneLogin, dest);
-    }
-
-    @FXML
-    void onRegisterButtonClicked(ActionEvent event) throws IOException {
-        MainApplication.navigateTo(anchorPaneLogin, "/view/register-view.fxml");
-    }
-
-    @Override
-    public void initialize(URL url, ResourceBundle resourceBundle) {
-        db = new UserDAOImpl();
-        User currentUser = LogginUser.getUser();
-
-        if (currentUser != null) {
-            textUserName.setText(currentUser.getName());
-            textUserPassword.setText(currentUser.getPassword());
-        }
-    }
-
-    private void showAlert(Alert.AlertType type, String title, String header, String content) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
+        return ResponseEntity.ok(currentUser);
     }
 }

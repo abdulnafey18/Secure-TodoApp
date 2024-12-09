@@ -6,13 +6,11 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public  class LogDAOImpl implements LogDAO<Log>{
-
-
+public class LogDAOImpl implements LogDAO<Log> {
+    //SQL Injection mitigation
     @Override
     public int create(Log log) throws SQLException {
         String sql = "INSERT INTO log (level, message, created) VALUES (?, ?, ?)";
-        // Use try resources to manage Connection and PreparedStatement
         try (Connection con = Database.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, log.getLevel());
@@ -21,26 +19,26 @@ public  class LogDAOImpl implements LogDAO<Log>{
             return ps.executeUpdate();
         }
     }
+
     @Override
     public Log readOne(int id) throws SQLException {
-        return null;
+        return null; // Not implemented for now
     }
 
     @Override
     public int update(Log log) throws SQLException {
-        return 0;
+        return 0; // Not implemented for now
     }
 
     @Override
     public int delete(Log log) throws SQLException {
-        Connection connection = Database.getConnection();
-        String sql = "DELETE  FROM log WHERE id =? ";
-        PreparedStatement ps = connection.prepareStatement(sql);
+        Connection con = Database.getConnection();
+        String sql = "DELETE FROM log WHERE id = ?";
+        PreparedStatement ps = con.prepareStatement(sql);
         ps.setInt(1, log.getLogId());
         int result = ps.executeUpdate();
-
         Database.closePreparedStatement(ps);
-        Database.closeConnection(connection);
+        Database.closeConnection(con);
         return result;
     }
 
@@ -63,28 +61,24 @@ public  class LogDAOImpl implements LogDAO<Log>{
     }
 
     @Override
-    public List<Log> readTableColumnQuery(String a, String b, String c) throws SQLException {
+    public List<Log> readTableColumnQuery(String tableName, String columnName, String columnValue) throws SQLException {
         Connection con = Database.getConnection();
-        String sql = "SELECT * FROM "+a+" WHERE "+b+" = '"+c+"'";
+        String sql = "SELECT * FROM " + tableName + " WHERE " + columnName + " = ?";
         List<Log> logs = new ArrayList<>();
-        Statement stmt = con.createStatement();
-        ResultSet rs = stmt.executeQuery(sql);
 
-        while (rs.next()) {
-            Integer _id = rs.getInt("Id");
-            String logLevel = rs.getString("level");
-            String logMessage = rs.getString("message");
-            String logCreated = rs.getString("created");
-            Log log = new Log(_id, logLevel, logMessage, logCreated);
-            logs.add(log);
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, columnValue);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Integer _id = rs.getInt("Id");
+                    String logLevel = rs.getString("level");
+                    String logMessage = rs.getString("message");
+                    String logCreated = rs.getString("created");
+                    Log log = new Log(_id, logLevel, logMessage, logCreated);
+                    logs.add(log);
+                }
+            }
         }
         return logs;
     }
-    public enum warn_level {
-        WARN,
-        INFO,
-        DEBUG,
-    }
-
 }
-

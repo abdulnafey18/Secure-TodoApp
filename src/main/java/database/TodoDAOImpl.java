@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class TodoDAOImpl implements TodoDAO {
-
+    //SQL Injection mitigation
     @Override
     public int create(Todo todo) throws SQLException {
         Connection con = Database.getConnection();
@@ -57,7 +57,7 @@ public class TodoDAOImpl implements TodoDAO {
         String sql = "UPDATE todos SET task = ? WHERE id = ?";
         PreparedStatement ps = con.prepareStatement(sql);
         ps.setString(1, todo.getTask());
-        ps.setInt(3, todo.getId());
+        ps.setInt(2, todo.getId());
 
         int result = ps.executeUpdate();
 
