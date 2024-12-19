@@ -97,18 +97,21 @@ public class UserDAOImpl implements UserDAO {
 
     @Override
     public User readLoggedInUser(String name, String password) throws SQLException {
+        // Construct an insecure query
         String sql = "SELECT * FROM user WHERE name = '" + name + "'";
+        System.out.println("Executing SQL: " + sql); // Debugging purpose
+
         User user = null;
 
         try (Connection con = Database.getConnection();
              Statement stmt = con.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             if (rs.next()) {
-                String storedPassword = rs.getString("password");
-                if (password.equals(storedPassword)) {
-                    user = mapUser(rs);
-                }
+                // Skip password verification to demonstrate SQL Injection
+                user = mapUser(rs);
             }
+        } catch (SQLException e) {
+            System.out.println("SQL Error: " + e.getMessage());
         }
         return user;
     }

@@ -1,7 +1,6 @@
 package database;
 
 import model.Todo;
-
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,12 +9,14 @@ public class TodoDAOImpl implements TodoDAO {
 
     @Override
     public int create(Todo todo) throws SQLException {
-        String sql = "INSERT INTO todos (user_id, task) VALUES ("
-                + todo.getUserId() + ", '"
-                + todo.getTask() + "')";
+        String sql = "INSERT INTO todos (user_id, task) VALUES (?, ?)";
+        System.out.println("Executing SQL: " + sql + " with parameters: [" + todo.getUserId() + ", " + todo.getTask() + "]");
+
         try (Connection con = Database.getConnection();
-             Statement stmt = con.createStatement()) {
-            return stmt.executeUpdate(sql);
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
+            pstmt.setInt(1, todo.getUserId());
+            pstmt.setString(2, todo.getTask()); // Parameterized task input
+            return pstmt.executeUpdate();
         }
     }
 
@@ -23,7 +24,6 @@ public class TodoDAOImpl implements TodoDAO {
     public Todo readOne(int id) throws SQLException {
         String sql = "SELECT * FROM todos WHERE id = " + id;
         Todo todo = null;
-
         try (Connection con = Database.getConnection();
              Statement stmt = con.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
@@ -61,7 +61,6 @@ public class TodoDAOImpl implements TodoDAO {
     public List<Todo> readAllByUserId(int userId) throws SQLException {
         String sql = "SELECT * FROM todos WHERE user_id = " + userId;
         List<Todo> todos = new ArrayList<>();
-
         try (Connection con = Database.getConnection();
              Statement stmt = con.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {

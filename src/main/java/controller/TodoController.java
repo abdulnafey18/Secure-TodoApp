@@ -2,20 +2,12 @@ package controller;
 
 import database.TodoDAO;
 import database.TodoDAOImpl;
-import database.UserDAO;
-import database.UserDAOImpl;
-import database.LogDAO;
-import database.LogDAOImpl;
 import model.Todo;
 import model.User;
-import model.Log;
-
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpSession;
 import java.sql.SQLException;
-import java.time.LocalDateTime;
-import java.util.Date;
 import java.util.List;
 
 @RestController
@@ -23,13 +15,9 @@ import java.util.List;
 public class TodoController {
 
     private final TodoDAO todoDAO;
-    private final UserDAO userDAO;
-    private final LogDAO logDAO;
 
     public TodoController() {
         this.todoDAO = new TodoDAOImpl();
-        this.userDAO = new UserDAOImpl();
-        this.logDAO = new LogDAOImpl();
     }
 
     @GetMapping("/{userId}")
@@ -52,17 +40,12 @@ public class TodoController {
             if (currentUser == null) {
                 throw new RuntimeException("Current user not logged in.");
             }
-
+            System.out.println("Task received before saving: " + todo.getTask()); // Debugging log
             todo.setUserId(currentUser.getId());
-            int result = todoDAO.create(todo);
-            if (result > 0) {
-                Log log = new Log("INFO", currentUser.getName() + " added a task " + todo.getTask(), new Date().toString());
-                logDAO.create(log);
-                return todo;
-            } else {
-                throw new RuntimeException("Failed to create todo");
-            }
+            todoDAO.create(todo);
+            return todo;
         } catch (SQLException e) {
+            e.printStackTrace();
             throw new RuntimeException("Error creating todo", e);
         }
     }
@@ -74,21 +57,9 @@ public class TodoController {
             if (currentUser == null) {
                 throw new RuntimeException("Current user not logged in.");
             }
-
-            Todo existingTodo = todoDAO.readOne(id);
-            if (existingTodo == null) {
-                throw new RuntimeException("Task not found.");
-            }
-
             todo.setId(id);
-            int result = todoDAO.update(todo);
-            if (result > 0) {
-                Log log = new Log("INFO", currentUser.getName() + " updated task \"" + existingTodo.getTask() + "\" to \"" + todo.getTask() + "\"", new Date().toString());
-                logDAO.create(log);
-                return todo;
-            } else {
-                throw new RuntimeException("Failed to update todo");
-            }
+            todoDAO.update(todo);
+            return todo;
         } catch (SQLException e) {
             throw new RuntimeException("Error updating todo", e);
         }
@@ -101,15 +72,7 @@ public class TodoController {
             if (currentUser == null) {
                 throw new RuntimeException("Current user not logged in.");
             }
-
-            Todo todo = todoDAO.readOne(id);
-            if (todo != null) {
-                todoDAO.delete(todo);
-                Log log = new Log("INFO", currentUser.getName() + " deleted task \"" + todo.getTask() + "\"", new Date().toString());
-                logDAO.create(log);
-            } else {
-                throw new RuntimeException("Todo not found with ID: " + id);
-            }
+            todoDAO.delete(new Todo(id, currentUser.getId(), ""));
         } catch (SQLException e) {
             throw new RuntimeException("Error deleting todo", e);
         }

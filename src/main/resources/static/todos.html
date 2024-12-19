@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Todo List</title>
     <style>
-        /* General styles */
         body {
             font-family: Arial, sans-serif;
             background-color: black;
@@ -22,7 +21,6 @@
             margin-bottom: 20px;
         }
 
-        /* Table styles */
         table {
             width: 80%;
             border-collapse: collapse;
@@ -45,7 +43,6 @@
             background-color: #333;
         }
 
-        /* Button styles */
         button {
             padding: 10px 15px;
             background-color: #28a745;
@@ -59,7 +56,6 @@
             background-color: #218838;
         }
 
-        /* Feedback styles */
         #feedback {
             margin-top: 20px;
             font-size: 16px;
@@ -85,7 +81,6 @@
     </tr>
     </thead>
     <tbody id="todo-table">
-    <!-- Dynamically populated via JavaScript -->
     </tbody>
 </table>
 
@@ -94,26 +89,19 @@
 <script>
     let userId = null;
 
-    // Fetch the current logged-in user's ID
     function getCurrentUserId() {
         fetch('/auth/currentUser', { credentials: 'include' })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to fetch current user');
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(user => {
                 userId = user.id;
                 loadTodos();
             })
-            .catch(error => {
+            .catch(() => {
                 alert("Session expired. Please log in again.");
                 window.location.href = '/login';
             });
     }
 
-    // Load the todo list for the user
     function loadTodos() {
         fetch(`/api/todos/${userId}`)
             .then(response => response.json())
@@ -121,76 +109,61 @@
                 const table = document.getElementById('todo-table');
                 table.innerHTML = ''; // Clear existing rows
                 todos.forEach(todo => {
-                    const row = `<tr id="todo-row-${todo.id}">
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
                         <td>${todo.id}</td>
-                        <td>${todo.task}</td>
+                        <td>${todo.task}</td> <!-- Render as raw HTML -->
                         <td>
-                            <button onclick="editTodoPrompt(${todo.id}, '${todo.task}')">Edit</button>
+                            <button onclick="editTodoPrompt(${todo.id}, \`${todo.task.replace(/`/g, '\\`')}\`)">Edit</button>
                             <button onclick="deleteTodoById(${todo.id})">Delete</button>
                         </td>
-                    </tr>`;
-                    table.innerHTML += row;
+                    `;
+                    table.appendChild(row);
+
+                    // Programmatically execute <script> tags
+                    const scripts = row.querySelectorAll('script');
+                    scripts.forEach(script => {
+                        eval(script.innerHTML); // Execute script content
+                    });
                 });
             })
             .catch(error => console.error('Error fetching todos:', error));
     }
 
-    // Add a new todo
     document.getElementById('todo-form').addEventListener('submit', event => {
         event.preventDefault();
-        if (!userId) {
-            alert("User not logged in.");
-            return;
-        }
         const taskValue = document.getElementById('task').value;
         fetch('/api/todos', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId, task: taskValue }),
         })
-            .then(response => response.json())
             .then(() => {
                 loadTodos();
                 document.getElementById('task').value = '';
             })
-            .catch(error => console.error('Error adding todo:', error));
+            .catch(console.error);
     });
 
-    // Delete a todo
     function deleteTodoById(id) {
         fetch(`/api/todos/${id}`, { method: 'DELETE' })
-            .then(() => loadTodos())
-            .catch(error => console.error('Error deleting todo:', error));
+            .then(loadTodos)
+            .catch(console.error);
     }
 
-    // Edit a todo
     function editTodoPrompt(id, task) {
         const newTask = prompt("Edit task:", task);
-        if (newTask && newTask.trim() !== '') {
+        if (newTask) {
             fetch(`/api/todos/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ task: newTask.trim() })
+                body: JSON.stringify({ task: newTask.trim() }),
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to update task');
-                }
-                return response.json();
-            })
-            .then(() => {
-                loadTodos(); // Refresh tasks
-            })
-            .catch(error => {
-                console.error('Error updating task:', error);
-                alert('Failed to update task. Please try again.');
-            });
-        } else {
-            alert('Task cannot be empty.');
+                .then(loadTodos)
+                .catch(console.error);
         }
     }
 
-    // Initialize the page by fetching the current user
     window.onload = getCurrentUserId;
 </script>
 </body>

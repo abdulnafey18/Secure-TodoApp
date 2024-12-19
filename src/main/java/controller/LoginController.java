@@ -22,27 +22,15 @@ public class LoginController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody User loginRequest, HttpSession session) {
         try {
-            if (loginRequest.getName() == null || loginRequest.getPassword() == null) {
-                return ResponseEntity.badRequest().body("Username or password is missing");
-            }
-
-            // Retrieve user by username
+            // Call DAO method to fetch user
             User existingUser = userDAO.readLoggedInUser(loginRequest.getName(), loginRequest.getPassword());
+
+            // If no user is found, return an error
             if (existingUser == null) {
                 return ResponseEntity.badRequest().body("Invalid credentials");
             }
 
-            // Check if the user is locked
-            if (existingUser.getLock() == User.LOCK.LOCKED) {
-                return ResponseEntity.badRequest().body("User account is locked. Please contact support.");
-            }
-
-            // Verify password
-            if (!loginRequest.getPassword().equals(existingUser.getPassword())) {
-                return ResponseEntity.badRequest().body("Invalid credentials");
-            }
-
-            // Store user in session
+            // Skip password verification for testing SQL injection
             session.setAttribute("currentUser", existingUser);
             return ResponseEntity.ok(existingUser);
         } catch (SQLException e) {
